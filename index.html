@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0b10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Wolfsmond">
+<title>Wolfsmond</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #0c0b10; --bg2: #15131c; --card: #1c1a25; --line: #2a2735; --text: #f1eef6; --muted: #9a95a8;
+  --accent: #e8b44f; --accent2: #c2344d; --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); color-scheme: dark; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: radial-gradient(circle at 50% 0%, #22111b, var(--bg) 60%) fixed, var(--bg); color: var(--text); }
+body { font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.5; min-height: 100vh; }
+.wrap { max-width: 520px; margin: 0 auto; padding: calc(28px + var(--safe-t)) 16px calc(36px + var(--safe-b)); }
+.brand { display: flex; align-items: center; justify-content: center; gap: 12px; font-family: "Cormorant Garamond", serif;
+  font-size: 52px; font-weight: 700; letter-spacing: 1px; line-height: 1; margin: 6px 0 4px; }
+.brand svg { width: 46px; height: 46px; flex: 0 0 auto; }
+.dedication { text-align: center; color: var(--muted); font-style: italic; font-size: 14px; margin-bottom: 24px; }
+.introimg { display: block; width: 72%; max-width: 300px; margin: 0 auto 22px; border-radius: 14px; overflow: hidden; box-shadow: 0 14px 34px rgba(0,0,0,.55); }
+.introimg img { display: block; width: 100%; height: auto; aspect-ratio: 848/1264; object-fit: cover; }
+h2 { font-family: "Cormorant Garamond", serif; font-size: 32px; line-height: 1.05; margin: 0 0 10px; color: var(--accent); text-align: center; }
+.intro p { color: #d9d4e2; margin: 0 0 10px; font-size: 14.5px; }
+form { margin-top: 26px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+input { width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--bg2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px; margin-bottom: 14px; outline: none; }
+input:focus { border-color: var(--accent); }
+button { width: 100%; font: inherit; font-weight: 600; color: #1a1206; background: var(--accent); border: 0; border-radius: 999px; padding: 13px 20px; cursor: pointer; }
+button:disabled { opacity: .6; }
+.err { color: #ef7d92; font-size: 14px; min-height: 1.4em; margin: -4px 0 10px; text-align: center; }
+.note { color: var(--muted); font-size: 12px; text-align: center; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><svg viewBox="0 0 32 32"><defs><radialGradient id="mi" cx="40%" cy="35%"><stop offset="0" stop-color="#fff3d1"/><stop offset="1" stop-color="#e8b44f"/></radialGradient></defs><circle cx="16" cy="16" r="12" fill="url(#mi)"/><circle cx="21" cy="12" r="10" fill="#0c0b10"/></svg><span id="appname">Wolfsmond</span></div>
+  <div class="dedication" id="dedication"></div>
+  <div id="intro"></div>
+  <form id="f" autocomplete="on">
+    <label for="name">Name</label>
+    <input id="name" name="username" autocomplete="username" autocapitalize="words" required>
+    <label for="pw">Passwort</label>
+    <input id="pw" name="password" type="password" autocomplete="current-password" required>
+    <div class="err" id="err"></div>
+    <button id="go" type="submit">Anmelden</button>
+    <div class="note">Nur für Erwachsene. Zugang nur mit eigenem Konto.</div>
+  </form>
+</div>
+<script type="application/json" id="intro-data">{"name": "Wolfsmond", "dedication": "Für meine Herrin.", "introTitle": "Unter ihrem Mond", "intro": "Im Schatten alter Wälder, zwischen Vollmondnächten, uralten Rudeln und vergessenen Flüchen, gelten andere Gesetze. Hier ist sie die Alpha – stark, stolz, besitzergreifend. Sie wählt. Sie bestimmt. Sie nimmt sich, was ihr gehört. Und er lernt, was es heißt, zu warten, zu knien und sich ihr ganz zu ergeben.\n\nWolfsmond erzählt Dark-Romance-Geschichten über Werwölfe, in denen die Frau die Führung hat: über verbotenes Verlangen und gefährliche Feinde, über dunkle Magie und alte Blutlinien, über Hingabe, die tiefer bindet als jeder Schwur. Sinnlich, fordernd, leidenschaftlich – und nur für Erwachsene.", "introImage": "img/00.jpg?v=1790659807"}</script>
+<script type="application/json" id="sbcfg">{"url": "https://kxqklzqyzcymiqxuloem.supabase.co", "key": "sb_publishable_SR9Gq_b6VMSbNqCs640nyA_gmxMnw4v", "bucket": "wolfsmond", "domain": "wolfsmond.app"}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function () {
+  const I = JSON.parse(document.getElementById("intro-data").textContent);
+  const SBC = JSON.parse(document.getElementById("sbcfg").textContent);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  document.getElementById("appname").textContent = I.name || "Wolfsmond";
+  document.getElementById("dedication").textContent = I.dedication || "";
+  document.getElementById("intro").innerHTML =
+    (I.introImage ? `<div class="introimg"><img src="${esc(I.introImage)}" alt="Wolfsmond"></div>` : "") +
+    (I.introTitle ? `<h2>${esc(I.introTitle)}</h2>` : "") +
+    `<div class="intro">${(I.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
+
+  const err = document.getElementById("err"), go = document.getElementById("go");
+  let sb;
+  try { sb = supabase.createClient(SBC.url, SBC.key); } catch (e) { err.textContent = "Anmeldung gerade nicht erreichbar."; go.disabled = true; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { location.replace("lesen.html"); return; }
+
+  document.getElementById("f").onsubmit = async e => {
+    e.preventDefault();
+    const name = document.getElementById("name").value.trim(), pw = document.getElementById("pw").value;
+    if (!name || !pw) return;
+    err.textContent = ""; go.disabled = true; go.textContent = "Einen Moment …";
+    const email = name.includes("@") ? name.toLowerCase() : name.toLowerCase() + "@" + SBC.domain;
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error) {
+      err.textContent = /invalid/i.test(error.message) ? "Name oder Passwort stimmt nicht." : "Anmeldung fehlgeschlagen. Bitte später erneut versuchen.";
+      go.disabled = false; go.textContent = "Anmelden";
+      return;
+    }
+    location.replace("lesen.html");
+  };
+})();
+</script>
+<script>if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+</body>
+</html>

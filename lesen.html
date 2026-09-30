@@ -197,6 +197,35 @@ body.reading .tabbar { display: none; }
   background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
 .soonnote { color: var(--muted); font-size: 13px; margin: -6px 0 16px; text-align: center; }
 
+/* ---------- Errungenschaften ---------- */
+.astats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 20px; }
+.astats div { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.astats b { display: block; font-family: "Cormorant Garamond", serif; font-size: 26px; line-height: 1; color: var(--accent); }
+.astats small { color: var(--muted); font-size: 11.5px; }
+.achgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 14px 10px; margin: 4px 0 22px; }
+.acard { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.acard .aimg { width: 100%; aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: var(--card);
+  border: 2px solid #8d8a96; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+.acard .aimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.acard.leg .aimg { border-color: var(--accent); box-shadow: 0 0 18px rgba(232,180,79,.45); }
+.acard b { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.acard small { color: var(--muted); font-size: 11px; margin-top: -3px; }
+.adetail { text-align: center; }
+.adetail img { width: min(62vw, 260px); aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 3px solid #8d8a96; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.adetail.leg img { border-color: var(--accent); box-shadow: 0 0 30px rgba(232,180,79,.5); }
+.adetail h2 { font-family: "Cormorant Garamond", serif; font-size: 30px; margin: 14px 0 4px; line-height: 1.05; }
+.adetail .ak { color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
+.adetail p { color: #d6d1df; margin: 8px 0 6px; line-height: 1.5; }
+.adetail small { color: var(--muted); }
+.atoast { position: fixed; left: 12px; right: 12px; top: calc(10px + var(--safe-t)); z-index: 80; max-width: 460px; margin: 0 auto;
+  display: flex; gap: 12px; align-items: center; background: rgba(28,26,37,.97); border: 1px solid rgba(232,180,79,.55);
+  border-radius: 16px; padding: 10px 14px 10px 10px; box-shadow: 0 12px 32px rgba(0,0,0,.55);
+  transform: translateY(-140%); transition: transform .35s; cursor: pointer; }
+.atoast.show { transform: none; }
+.atoast img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); flex: 0 0 52px; }
+.atoast .tk { font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+.atoast b { display: block; font-family: "Cormorant Garamond", serif; font-size: 21px; line-height: 1.1; }
+
 /* ---------- Immer Hochformat: im Querformat dreht sich die App selbst zurück ---------- */
 html.turned, html.turned body { overflow: hidden; height: 100%; }
 html.turned { --vh100: var(--th); }
@@ -212,7 +241,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   <a href="#/" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Entdecken</a>
   <a href="#/bibliothek" data-tab="lib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h5v16H4zM10 4h5v16h-5zM16.5 4.5l4 .9-3.4 15.4-4-.9z"/></svg>Bibliothek</a>
   <a href="#/gelesen" data-tab="done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8.5l2 2 4-4"/></svg>Gelesen</a>
+  <a href="#/erfolge" data-tab="ach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.8L7 21l5-2.6 5 2.6-1.5-7.2"/><path d="M12 6.2l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2L9.1 8.3l2-.3z"/></svg>Erfolge</a>
 </nav>
+<div class="atoast" id="atoast"></div>
 <div class="sheet-bg" id="sheetBg"></div>
 <div class="sheet" id="sheet"></div>
 
@@ -249,11 +280,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach") pushSoon();
   }
   let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
   let removed = load("removed", {});     // {id: Zeitpunkt des Zurücksetzens} – damit andere Geräte es mitbekommen
+  let ach = load("ach", {});             // {achievementId: Zeitpunkt, _init: erste Prüfung} – einmal verdient, bleibt verdient
 
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
   let pushT = 0;
@@ -261,7 +293,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   async function pushNow() {
     if (!sb) return;
     clearTimeout(pushT);
-    try { await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed }, updated_at: new Date().toISOString() }); } catch (e) {}
+    try { await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach }, updated_at: new Date().toISOString() }); } catch (e) {}
   }
   async function pull() {
     if (!sb) return false;
@@ -280,8 +312,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         if (!l || (p.t || 0) > (l.t || 0)) { progress[id] = p; changed = true; }
       });
       if (r.prefs && (r.prefs.t || 0) > (prefs.t || 0)) { prefs = r.prefs; changed = true; }
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); } catch (e) {}
+      Object.entries(r.ach || {}).forEach(([k, t]) => { if (!(k in ach) || t < ach[k]) { ach[k] = t; changed = true; } });
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -290,7 +323,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     pushSoon();
     document.addEventListener("visibilitychange", async () => {
       if (document.visibilityState === "hidden") pushNow();
-      else if (await pull() && !document.body.classList.contains("reading")) route();
+      else if (await pull()) { checkAch(); if (!document.body.classList.contains("reading")) route(); }
     });
   }
 
@@ -317,6 +350,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!p.read.includes(ch)) p.read.push(ch);
     p.t = Date.now();
     save("progress", progress);
+    checkAch();
   }
   function finishBook(id) {
     const st = byId[id]; if (!st) return;
@@ -324,8 +358,76 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     p.read = st.chapters.map((_, i) => i);
     p.done = Date.now(); p.t = p.done; p.ch = 0; p.pos = 0;
     save("progress", progress);
+    checkAch();
   }
   function resetBook(id) { delete progress[id]; removed[id] = Date.now(); save("removed", removed); save("progress", progress); }
+
+  /* ---------- Errungenschaften ---------- */
+  const ACH = DATA.app.achievements || [];
+  const achById = Object.fromEntries(ACH.map(a => [a.id, a]));
+  const ACH_CATS = [["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["genre", "Genres"]];
+  function readStats() {
+    let books = 0, w = 0; const genres = {};
+    STORIES.forEach(st => {
+      const p = progress[st.id]; if (!p || !st.chapters) return;
+      if (p.done) {
+        books++; w += words(st);
+        (st.genres || []).forEach(g => { genres[g] = (genres[g] || 0) + 1; });
+      } else (p.read || []).forEach(i => { const c = st.chapters[i]; if (c) w += c.words; });
+    });
+    return { books, hours: w / 230 / 60, genres };
+  }
+  function achMet(a, s) {
+    if (a.typ === "buecher") return s.books >= a.ziel;
+    if (a.typ === "zeit") return s.hours >= a.ziel;
+    if (a.typ === "genre") return (s.genres[a.genre] || 0) >= 1;
+    return false;
+  }
+  const achToastQ = [];
+  let achToastBusy = false;
+  function achToast(img, kick, title) {
+    achToastQ.push({ img, kick, title });
+    if (!achToastBusy) nextToast();
+  }
+  function nextToast() {
+    const el = document.getElementById("atoast"), t = achToastQ.shift();
+    if (!t) { achToastBusy = false; return; }
+    achToastBusy = true;
+    el.innerHTML = `${t.img ? `<img src="${t.img}" alt="">` : ""}<div><div class="tk">${esc(t.kick)}</div><b>${esc(t.title)}</b></div>`;
+    el.onclick = () => { el.classList.remove("show"); location.hash = "#/erfolge"; };
+    requestAnimationFrame(() => el.classList.add("show"));
+    setTimeout(() => { el.classList.remove("show"); setTimeout(nextToast, 450); }, 4800);
+  }
+  /* Prüft alle Errungenschaften und vergibt, was erfüllt ist. Beim allerersten Mal (Feature neu)
+     werden bereits erfüllte nachträglich vergeben – mit einem einzigen Sammelhinweis statt vieler Einzelmeldungen. */
+  function checkAch() {
+    if (!ACH.length) return;
+    const s = readStats(), now = Date.now(), fresh = [];
+    ACH.forEach(a => { if (!(a.id in ach) && achMet(a, s)) { ach[a.id] = now; fresh.push(a); } });
+    const first = !ach._init;
+    if (first) ach._init = now;
+    if (!fresh.length && !first) return;
+    save("ach", ach);
+    if (!fresh.length) return;
+    if (first && fresh.length > 1) {
+      const top = fresh[fresh.length - 1];
+      achToast(top.img, "Errungenschaften", fresh.length + " bereits verdient");
+    } else fresh.forEach(a => achToast(a.img, "Errungenschaft freigeschaltet", a.titel));
+    if ((location.hash || "").startsWith("#/erfolge")) route();
+  }
+  function fmtHours(h) { return h < 1 ? Math.round(h * 60) + " Min." : (h < 10 ? h.toFixed(1).replace(".", ",") : Math.round(h).toLocaleString("de-DE")) + " Std."; }
+  function openAch(id) {
+    const a = achById[id]; if (!a) return;
+    const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
+    const cat = a.typ === "genre" ? (GENRES[a.genre] || "Genre") : (ACH_CATS.find(c => c[0] === a.typ) || [, ""])[1];
+    sh.onclick = null;
+    sh.innerHTML = `<div class="adetail ${a.stufe === "Legendär" ? "leg" : ""}">${a.img ? `<img src="${a.img}" alt="">` : ""}
+      <div class="ak" style="margin-top:14px">${esc(cat)}${a.stufe ? " · " + esc(a.stufe) : ""}</div>
+      <h2>${esc(a.titel)}</h2><p>${esc(a.text || "")}</p><small>Erhalten am ${fmtDate(ach[a.id])}</small></div>`;
+    bg.style.display = "block";
+    requestAnimationFrame(() => sh.classList.add("open"));
+  }
+
   function fmtDate(ms) { try { return new Date(ms).toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return ""; } }
 
   const moonIcon = '<svg viewBox="0 0 32 32"><defs><radialGradient id="mi" cx="40%" cy="35%"><stop offset="0" stop-color="#fff3d1"/><stop offset="1" stop-color="#e8b44f"/></radialGradient></defs><circle cx="16" cy="16" r="12" fill="url(#mi)"/><circle cx="21" cy="12" r="10" fill="#0c0b10"/></svg>';
@@ -470,6 +572,28 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return h + "</div>";
   }
 
+  function viewAch() {
+    const s = readStats();
+    const got = ACH.filter(a => a.id in ach);
+    let h = header() + `<div class="wrap"><div class="sec"><h3>Errungenschaften</h3><span>${got.length} freigeschaltet</span></div>
+      <div class="astats"><div><b>${s.books}</b><small>${s.books === 1 ? "Buch" : "Bücher"} gelesen</small></div>
+      <div><b>${fmtHours(s.hours).replace(" Std.", "").replace(" Min.", "")}</b><small>${s.hours < 1 ? "Minuten" : "Stunden"} Lesezeit</small></div>
+      <div><b>${Object.keys(s.genres).filter(g => GENRES[g]).length}</b><small>Genres entdeckt</small></div></div>`;
+    if (!got.length) return h + '<div class="empty">Noch keine Errungenschaften.<br>Lies weiter – die erste wartet schon auf dich.</div></div>';
+    const open = prefs.achOpen || {};
+    ACH_CATS.forEach(([k, label]) => {
+      let list = got.filter(a => a.typ === k);
+      if (!list.length) return;
+      if (k === "genre") list.sort((a, b) => GENRE_KEYS.indexOf(a.genre) - GENRE_KEYS.indexOf(b.genre));
+      else list.sort((a, b) => a.ziel - b.ziel);
+      h += `<details class="fold achfold" data-k="${k}" ${open[k] ? "open" : ""}><summary class="sec"><h3>${label} <span>(${list.length})</span></h3><span class="chev">▾</span></summary>
+        <div class="achgrid">${list.map(a => `<button class="acard ${a.stufe === "Legendär" ? "leg" : ""}" data-a="${a.id}">
+          <div class="aimg">${a.img ? `<img src="${a.img}" alt="" loading="lazy" decoding="async">` : ""}</div>
+          <b>${esc(a.titel)}</b><small>${a.typ === "genre" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div></details>`;
+    });
+    return h + "</div>";
+  }
+
   function viewStory(id) {
     const st = byId[id];
     if (!st) return viewHome();
@@ -590,11 +714,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const parts = (location.hash.replace(/^#\/?/, "") || "").split("/");
     const reading = parts[0] === "read";
     document.body.classList.toggle("reading", reading);
-    const tab = parts[0] === "bibliothek" ? "lib" : parts[0] === "gelesen" ? "done" : "home";
+    const tab = parts[0] === "bibliothek" ? "lib" : parts[0] === "gelesen" ? "done" : parts[0] === "erfolge" ? "ach" : "home";
     document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.tab === tab && !reading && parts[0] !== "story"));
     let html;
     if (parts[0] === "bibliothek") html = viewLibrary();
     else if (parts[0] === "gelesen") html = viewDone();
+    else if (parts[0] === "erfolge") html = viewAch();
     else if (parts[0] === "story") html = viewStory(parts[1]);
     else if (reading) {
       const st = byId[parts[1]];
@@ -618,6 +743,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
     const more = document.getElementById("more");
     if (more) more.onclick = () => { document.getElementById("desc").classList.remove("clamp"); more.remove(); };
+    document.querySelectorAll(".achfold").forEach(d => { d.ontoggle = () => { prefs.achOpen = Object.assign({}, prefs.achOpen, { [d.dataset.k]: d.open }); save("prefs", prefs); }; });
+    document.querySelectorAll(".acard").forEach(b => { b.onclick = () => openAch(b.dataset.a); });
     const df = document.getElementById("doneFold");
     if (df) df.ontoggle = () => { prefs.doneOpen = df.open; save("prefs", prefs); };
     const on = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
@@ -654,9 +781,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
           const p = progress[id];
           if (!p || onScroll !== self) return;
           p.pos = ratio;
-          if (ratio > 0.9 && !p.read.includes(ch)) p.read.push(ch);
+          const neu = ratio > 0.9 && !p.read.includes(ch);
+          if (neu) p.read.push(ch);
           if (p.done) p.pos = 0;
           save("progress", progress);
+          if (neu) checkAch();
         }, 250);
       };
       window.addEventListener("scroll", onScroll, { passive: true });
@@ -685,6 +814,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   window.addEventListener("orientationchange", () => setTimeout(orient, 60));
   if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener("change", () => setTimeout(orient, 60));
   gate();
+  checkAch();   // einmal beim Start: vergibt auch nachträglich, was schon erfüllt ist
 })();
 </script>
 <script>if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});</script>

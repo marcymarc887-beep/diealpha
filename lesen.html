@@ -580,16 +580,15 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <div><b>${fmtHours(s.hours).replace(" Std.", "").replace(" Min.", "")}</b><small>${s.hours < 1 ? "Minuten" : "Stunden"} Lesezeit</small></div>
       <div><b>${Object.keys(s.genres).filter(g => GENRES[g]).length}</b><small>Genres entdeckt</small></div></div>`;
     if (!got.length) return h + '<div class="empty">Noch keine Errungenschaften.<br>Lies weiter – die erste wartet schon auf dich.</div></div>';
-    const open = prefs.achOpen || {};
     ACH_CATS.forEach(([k, label]) => {
       let list = got.filter(a => a.typ === k);
       if (!list.length) return;
       if (k === "genre") list.sort((a, b) => GENRE_KEYS.indexOf(a.genre) - GENRE_KEYS.indexOf(b.genre));
       else list.sort((a, b) => a.ziel - b.ziel);
-      h += `<details class="fold achfold" data-k="${k}" ${open[k] ? "open" : ""}><summary class="sec"><h3>${label} <span>(${list.length})</span></h3><span class="chev">▾</span></summary>
+      h += `<div class="sec"><h3>${label}</h3><span>${list.length}</span></div>
         <div class="achgrid">${list.map(a => `<button class="acard ${a.stufe === "Legendär" ? "leg" : ""}" data-a="${a.id}">
           <div class="aimg">${a.img ? `<img src="${a.img}" alt="" loading="lazy" decoding="async">` : ""}</div>
-          <b>${esc(a.titel)}</b><small>${a.typ === "genre" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div></details>`;
+          <b>${esc(a.titel)}</b><small>${a.typ === "genre" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div>`;
     });
     return h + "</div>";
   }
@@ -743,7 +742,6 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
     const more = document.getElementById("more");
     if (more) more.onclick = () => { document.getElementById("desc").classList.remove("clamp"); more.remove(); };
-    document.querySelectorAll(".achfold").forEach(d => { d.ontoggle = () => { prefs.achOpen = Object.assign({}, prefs.achOpen, { [d.dataset.k]: d.open }); save("prefs", prefs); }; });
     document.querySelectorAll(".acard").forEach(b => { b.onclick = () => openAch(b.dataset.a); });
     const df = document.getElementById("doneFold");
     if (df) df.ontoggle = () => { prefs.doneOpen = df.open; save("prefs", prefs); };

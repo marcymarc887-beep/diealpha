@@ -90,8 +90,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* ---------- Bibliothek ---------- */
 .libitem { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.libitem .tile { flex: 0 0 64px; }
-.libitem .tile .ct { font-size: 11px; left: 5px; right: 5px; bottom: 5px; }
+.libitem .tile { flex: 0 0 132px; width: 132px; }
+.libitem .tile .tm, .libitem .tile .ts, .libitem .tile .pbar { display: none; }
 .libitem .info { flex: 1; min-width: 0; }
 .libitem .info b { display: block; font-size: 16px; }
 .libitem .info small { color: var(--muted); }
@@ -497,15 +497,16 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       (GENRE_KEYS.length ? `<select id="genreSel" aria-label="Genre" class="gsel">${opt(Object.assign({ alle: "Alle Genres" }, GENRES), prefs.genre || "alle")}</select>` : "") + `</div>`;
   }
 
-  function tile(st, cls) {
+  function tile(st, cls, plain) {
     const soon = st.status === "demnaechst";
     const p = pct(st);
-    return `<a class="tile ${soon ? "soon" : ""} ${cls || ""}" href="#/story/${st.id}">
+    const tag = plain ? "div" : "a";
+    return `<${tag} class="tile ${soon ? "soon" : ""} ${cls || ""}"${plain ? "" : ` href="#/story/${st.id}"`}>
       <div class="cover ${st.cover ? "img" : ""}">${coverArt(st)}<div class="ct">${esc(st.title)}</div>${soon ? '<span class="lock">Demnächst</span>' : ""}${isDone(st) ? '<span class="donebadge">Gelesen</span>' : ""}</div>
       <div class="tm">${esc(st.title)}</div>
       <div class="ts">${soon ? "In Arbeit" : (st.chapters.length + " Kapitel")}</div>
       ${p && !isDone(st) ? `<div class="pbar"><i style="width:${p}%"></i></div>` : ""}
-    </a>`;
+    </${tag}>`;
   }
 
   /* ---------- Ansichten ---------- */
@@ -553,7 +554,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!list.length) h += '<div class="empty">Noch keine Geschichten.</div>';
     list.forEach(s => {
       const p = progress[s.id];
-      h += `<a class="libitem" href="#/story/${s.id}">${tile(s)}<div class="info"><b>${esc(s.title)}</b>
+      h += `<a class="libitem" href="#/story/${s.id}">${tile(s, "", true)}<div class="info"><b>${esc(s.title)}</b>
         <small>${p ? "Kapitel " + (p.ch + 1) + " von " + s.chapters.length + " · " + pct(s) + " % gelesen" : s.chapters.length + " Kapitel · noch nicht begonnen"}</small>
         <div class="pbar"><i style="width:${pct(s)}%"></i></div></div></a>`;
     });
@@ -567,7 +568,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const list = STORIES.filter(isDone).sort((a, b) => progress[b.id].done - progress[a.id].done);
     if (!list.length) h += '<div class="empty">Noch kein Buch abgeschlossen.<br>Am Ende des letzten Kapitels kannst du ein Buch abschließen – dann erscheint es hier.</div>';
     list.forEach(s => {
-      h += `<a class="libitem" href="#/story/${s.id}">${tile(s)}<div class="info"><b>${esc(s.title)}</b>
+      h += `<a class="libitem" href="#/story/${s.id}">${tile(s, "", true)}<div class="info"><b>${esc(s.title)}</b>
         <small>Gelesen am ${fmtDate(progress[s.id].done)} · ${s.chapters.length} Kapitel</small></div></a>`;
     });
     return h + "</div>";

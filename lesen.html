@@ -365,7 +365,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Errungenschaften ---------- */
   const ACH = DATA.app.achievements || [];
   const achById = Object.fromEntries(ACH.map(a => [a.id, a]));
-  const ACH_CATS = [["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["genre", "Genres"]];
+  const ACH_CATS = [["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["genre", "Genres"], ["meister", "Meisterschaft der Genres"]];
   function readStats() {
     let books = 0, w = 0; const genres = {};
     STORIES.forEach(st => {
@@ -381,6 +381,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (a.typ === "buecher") return s.books >= a.ziel;
     if (a.typ === "zeit") return s.hours >= a.ziel;
     if (a.typ === "genre") return (s.genres[a.genre] || 0) >= 1;
+    if (a.typ === "meister") return (s.genres[a.genre] || 0) >= a.ziel;
     return false;
   }
   const achToastQ = [];
@@ -419,7 +420,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function openAch(id) {
     const a = achById[id]; if (!a) return;
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
-    const cat = a.typ === "genre" ? (GENRES[a.genre] || "Genre") : (ACH_CATS.find(c => c[0] === a.typ) || [, ""])[1];
+    const cat = a.typ === "genre" ? (GENRES[a.genre] || "Genre") : a.typ === "meister" ? "Meisterschaft · " + (GENRES[a.genre] || "") : (ACH_CATS.find(c => c[0] === a.typ) || [, ""])[1];
     sh.onclick = null;
     sh.innerHTML = `<div class="adetail ${a.stufe === "Legendär" ? "leg" : ""}">${a.img ? `<img src="${a.img}" alt="">` : ""}
       <div class="ak" style="margin-top:14px">${esc(cat)}${a.stufe ? " · " + esc(a.stufe) : ""}</div>
@@ -583,12 +584,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     ACH_CATS.forEach(([k, label]) => {
       let list = got.filter(a => a.typ === k);
       if (!list.length) return;
-      if (k === "genre") list.sort((a, b) => GENRE_KEYS.indexOf(a.genre) - GENRE_KEYS.indexOf(b.genre));
+      if (k === "genre" || k === "meister") list.sort((a, b) => (GENRE_KEYS.indexOf(a.genre) - GENRE_KEYS.indexOf(b.genre)) || (a.ziel || 0) - (b.ziel || 0));
       else list.sort((a, b) => a.ziel - b.ziel);
       h += `<div class="sec"><h3>${label}</h3><span>${list.length}</span></div>
         <div class="achgrid">${list.map(a => `<button class="acard ${a.stufe === "Legendär" ? "leg" : ""}" data-a="${a.id}">
           <div class="aimg">${a.img ? `<img src="${a.img}" alt="" loading="lazy" decoding="async">` : ""}</div>
-          <b>${esc(a.titel)}</b><small>${a.typ === "genre" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div>`;
+          <b>${esc(a.titel)}</b><small>${a.typ === "genre" || a.typ === "meister" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div>`;
     });
     return h + "</div>";
   }

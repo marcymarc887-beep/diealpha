@@ -365,19 +365,20 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Errungenschaften ---------- */
   const ACH = DATA.app.achievements || [];
   const achById = Object.fromEntries(ACH.map(a => [a.id, a]));
-  const ACH_CATS = [["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["genre", "Genres"], ["meister", "Meisterschaft der Genres"]];
+  const ACH_CATS = [["band", "Besondere Bände"], ["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["genre", "Genres"], ["meister", "Meisterschaft der Genres"]];
   function readStats() {
-    let books = 0, w = 0; const genres = {};
+    let books = 0, w = 0; const genres = {}, done = new Set();
     STORIES.forEach(st => {
       const p = progress[st.id]; if (!p || !st.chapters) return;
       if (p.done) {
-        books++; w += words(st);
+        books++; w += words(st); done.add(st.nr);
         (st.genres || []).forEach(g => { genres[g] = (genres[g] || 0) + 1; });
       } else (p.read || []).forEach(i => { const c = st.chapters[i]; if (c) w += c.words; });
     });
-    return { books, hours: w / 230 / 60, genres };
+    return { books, hours: w / 230 / 60, genres, done };
   }
   function achMet(a, s) {
+    if (a.typ === "band") return s.done.has(a.band);
     if (a.typ === "buecher") return s.books >= a.ziel;
     if (a.typ === "zeit") return s.hours >= a.ziel;
     if (a.typ === "genre") return (s.genres[a.genre] || 0) >= 1;

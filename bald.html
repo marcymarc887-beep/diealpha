@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07060b">
+<title>Wolfsmond · Bald</title>
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07060b; --text: #f1eef6; --muted: #8f8a9e; --line: rgba(255,255,255,.08);
+  --gold: #e8b44f; --gold2: #f6dca0; --blood: #c2344d;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 15px/1.5 Inter, system-ui, -apple-system, sans-serif; min-height: 100vh; overflow-x: hidden; }
+a { color: inherit; }
+
+/* Himmel */
+.sky { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 18%, #1b1430 0%, #0d0a17 45%, var(--bg) 80%); }
+.star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: .2; animation: twinkle 4s ease-in-out infinite; }
+@keyframes twinkle { 0%,100% { opacity: .15; } 50% { opacity: .9; } }
+.mist { position: fixed; left: -20%; right: -20%; bottom: -10%; height: 45vh; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 30% 100%, rgba(140,120,180,.16), transparent 60%),
+              radial-gradient(ellipse at 75% 100%, rgba(194,52,77,.10), transparent 55%);
+  filter: blur(18px); animation: drift 24s ease-in-out infinite alternate; }
+@keyframes drift { from { transform: translateX(-4%); } to { transform: translateX(4%); } }
+
+main { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: calc(36px + var(--safe-t)) 16px calc(56px + var(--safe-b)); text-align: center; }
+
+/* Mond */
+.moonwrap { position: relative; width: min(64vw, 280px); aspect-ratio: 1; margin: 0 auto 26px; }
+.moonwrap::before { content: ""; position: absolute; inset: -30%; border-radius: 50%;
+  background: radial-gradient(circle, rgba(246,220,160,.22), transparent 62%); animation: breathe 7s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { transform: scale(.94); opacity: .7; } 50% { transform: scale(1.06); opacity: 1; } }
+.moonwrap svg { position: relative; width: 100%; height: 100%; display: block; }
+.moonpct { font: 600 13px Inter, sans-serif; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-top: -10px; }
+
+h1 { font: 700 clamp(40px, 11vw, 64px)/1 "Cormorant Garamond", serif; margin: 6px 0 10px; letter-spacing: .5px; }
+.lead { font: italic 500 clamp(19px, 5vw, 23px)/1.35 "Cormorant Garamond", serif; color: #d9d4e2; max-width: 460px; margin: 0 auto 6px; }
+.whisper { color: var(--muted); font-size: 13px; margin: 0 auto 40px; }
+
+/* Abschnitte */
+section { margin: 0 0 40px; opacity: 0; transform: translateY(14px); transition: opacity 1.2s ease, transform 1.2s ease; }
+section.on { opacity: 1; transform: none; }
+.kick { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 16px; padding: 18px 10px 16px; background: rgba(16,13,26,.82); backdrop-filter: blur(4px); }
+.stat b { display: block; font: 700 clamp(28px, 8vw, 38px)/1.05 "Cormorant Garamond", serif; color: var(--gold2); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12.5px; }
+
+.growing { display: grid; gap: 10px; }
+.grow { display: flex; align-items: center; gap: 14px; text-align: left; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; background: rgba(16,13,26,.82); }
+.grow svg { width: 44px; height: 44px; flex: none; }
+.grow .t { font: 600 18px "Cormorant Garamond", serif; }
+.grow .s { color: var(--muted); font-size: 12.5px; }
+
+.dark { font: 600 clamp(54px, 16vw, 84px)/1 "Cormorant Garamond", serif; color: #3a3548; text-shadow: 0 0 30px rgba(120,100,170,.25); }
+.darktxt { color: var(--muted); margin-top: 4px; }
+
+.last { color: var(--muted); font-size: 13px; }
+.last b { color: var(--text); font-weight: 500; }
+.btn { display: inline-block; margin-top: 18px; padding: 12px 22px; border-radius: 999px; background: var(--gold); color: #1a1206; font-weight: 600; text-decoration: none; }
+.btn.ghost { background: rgba(255,255,255,.07); color: var(--text); }
+.foot { font: italic 500 18px "Cormorant Garamond", serif; color: var(--muted); margin-top: 10px; }
+.gate { color: var(--muted); }
+@media (min-width: 620px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .star, .mist, .moonwrap::before { animation: none; } section { transition: none; } }
+</style>
+</head>
+<body>
+<div class="sky" id="sky"></div>
+<div class="mist"></div>
+<main id="main">
+  <div class="moonwrap"><svg id="moon" viewBox="0 0 200 200" aria-hidden="true"></svg></div>
+  <div class="moonpct" id="moonpct">&nbsp;</div>
+  <h1>Wolfsmond</h1>
+  <p class="lead" id="lead">Etwas wächst. Nacht für Nacht.</p>
+  <p class="whisper" id="whisper">Mehr wird nicht verraten.</p>
+  <div id="content"><p class="gate">Der Mond sammelt sich …</p></div>
+</main>
+
+<script type="application/json" id="sbcfg">{"url": "https://kxqklzqyzcymiqxuloem.supabase.co", "key": "sb_publishable_SR9Gq_b6VMSbNqCs640nyA_gmxMnw4v", "bucket": "wolfsmond", "domain": "wolfsmond.app"}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function () {
+  const SBC = JSON.parse(document.getElementById("sbcfg").textContent);
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString("de-DE");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* Sterne */
+  const sky = $("sky");
+  for (let i = 0; i < 90; i++) {
+    const s = document.createElement("i");
+    s.className = "star";
+    s.style.left = Math.random() * 100 + "%";
+    s.style.top = Math.random() * 70 + "%";
+    s.style.animationDelay = (Math.random() * 4).toFixed(2) + "s";
+    if (Math.random() < .15) { s.style.width = s.style.height = "3px"; }
+    sky.appendChild(s);
+  }
+
+  /* Mondphase: f = beleuchteter Anteil 0..1, Licht wächst von rechts */
+  function phase(f, r, cx, cy) {
+    f = Math.max(0, Math.min(1, f));
+    if (f <= 0.001) return "";
+    if (f >= 0.999) return `M${cx},${cy - r} A${r},${r} 0 1 1 ${cx},${cy + r} A${r},${r} 0 1 1 ${cx},${cy - r}Z`;
+    const rx = r * Math.abs(1 - 2 * f), sweep = f < 0.5 ? 0 : 1;
+    return `M${cx},${cy - r} A${r},${r} 0 0 1 ${cx},${cy + r} A${rx},${r} 0 0 ${sweep} ${cx},${cy - r}Z`;
+  }
+  function moonSvg(f, size, glow) {
+    const r = size * 0.42, c = size / 2;
+    return `<defs><radialGradient id="lit${size}" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#fff6dc"/><stop offset=".7" stop-color="#f1d79a"/><stop offset="1" stop-color="#c9a764"/></radialGradient></defs>
+      <circle cx="${c}" cy="${c}" r="${r}" fill="#1a1726" stroke="rgba(255,255,255,.08)"/>
+      <path d="${phase(f, r, c, c)}" fill="url(#lit${size})" ${glow ? 'style="filter:drop-shadow(0 0 14px rgba(246,220,160,.55))"' : ""}/>
+      <circle cx="${c - r * .3}" cy="${c - r * .2}" r="${r * .12}" fill="rgba(0,0,0,.07)"/>
+      <circle cx="${c + r * .25}" cy="${c + r * .3}" r="${r * .18}" fill="rgba(0,0,0,.06)"/>`;
+  }
+  function setMoon(f) {
+    if (reduce) { $("moon").innerHTML = moonSvg(f, 200, true); return; }
+    const t0 = performance.now(), dur = 2600;
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      $("moon").innerHTML = moonSvg(f * e, 200, true);
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function countUp(el, to, dec) {
+    if (reduce) { el.textContent = dec ? to.toLocaleString("de-DE", { maximumFractionDigits: dec }) : fmt(to); return; }
+    const t0 = performance.now(), dur = 2200;
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = to * e;
+      el.textContent = dec ? v.toLocaleString("de-DE", { minimumFractionDigits: dec, maximumFractionDigits: dec }) : fmt(v);
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function ago(d) {
+    const s = (Date.now() - d.getTime()) / 1000;
+    if (s < 3600) return "vor " + Math.max(1, Math.round(s / 60)) + " Minuten";
+    if (s < 86400) return "vor " + Math.round(s / 3600) + " Stunden";
+    const t = Math.round(s / 86400);
+    return t === 1 ? "gestern" : "vor " + t + " Tagen";
+  }
+  function reveal() {
+    document.querySelectorAll("section").forEach((s, i) => setTimeout(() => s.classList.add("on"), 300 + i * 450));
+  }
+
+  /* Lokale Vorschau (nur localhost): gebaute out/meta.json statt Supabase */
+  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+    try {
+      const meta = await (await fetch("out/meta.json", { cache: "no-store" })).json();
+      $("whisper").textContent = "Lokale Vorschau. Mehr wird nicht verraten.";
+      return render(meta, new Date(Date.now() - 3 * 3600e3));
+    } catch (e) {}
+  }
+
+  /* Daten aus Supabase (nur für angemeldete Leserinnen) */
+  let sb, sig = "";
+  try {
+    sb = supabase.createClient(SBC.url, SBC.key);
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      setMoon(0.06);
+      $("content").innerHTML = `<section><p class="gate">Der Mond zeigt sich nur denen, die eingeladen sind.</p>
+        <a class="btn" href="index.html">Anmelden</a></section>`;
+      return reveal();
+    }
+    const name = session.user.user_metadata && session.user.user_metadata.name;
+    if (name) $("whisper").textContent = `Für ${name}. Mehr wird nicht verraten.`;
+  } catch (e) {
+    $("content").innerHTML = '<p class="gate">Der Himmel ist gerade bedeckt. Versuch es später noch einmal.</p>';
+    return;
+  }
+
+  async function load(first) {
+    try {
+      const r = await sb.storage.from(SBC.bucket).download("meta.json");
+      if (r.error) throw r.error;
+      const text = await r.data.text();
+      if (!first && text === sig) return;
+      sig = text;
+      const meta = JSON.parse(text);
+      let when = null;
+      try {
+        const l = await sb.storage.from(SBC.bucket).list("", { search: "meta.json" });
+        const f = (l.data || []).find(x => x.name === "meta.json");
+        if (f) when = new Date(f.updated_at || f.created_at);
+      } catch (e) {}
+      render(meta, when);
+    } catch (e) {
+      if (first) $("content").innerHTML = '<p class="gate">Der Himmel ist gerade bedeckt. Versuch es später noch einmal.</p>';
+    }
+  }
+
+  function render(meta, when) {
+    const all = meta.stories || [];
+    const kap = st => st.chapters || [];
+    const words = st => kap(st).reduce((a, c) => a + (c.words || 0), 0);
+    const done = all.filter(s => s.status === "fertig");
+    const grow = all.filter(s => s.status === "laufend").sort((a, b) => b.nr - a.nr);
+    const dark = all.filter(s => s.status !== "fertig" && s.status !== "laufend").length;
+    const written = all.filter(s => s.status === "fertig" || s.status === "laufend");
+    const totalWords = written.reduce((a, s) => a + words(s), 0);
+    const totalCh = written.reduce((a, s) => a + kap(s).length, 0);
+    const hours = done.reduce((a, s) => a + words(s), 0) / 230 / 60;
+    const f = all.length ? done.length / all.length : 0;
+
+    setMoon(f);
+    $("moonpct").textContent = `Der Mond ist zu ${Math.round(f * 100)} % gefüllt`;
+
+    const growHtml = grow.map(s => {
+      const n = kap(s).length, p = Math.min(1, n / 57);
+      const hint = p < .25 ? "regt sich" : p < .5 ? "nimmt Gestalt an" : p < .8 ? "wird stärker" : "ist fast so weit";
+      return `<div class="grow"><svg viewBox="0 0 44 44">${moonSvg(p, 44, false)}</svg>
+        <div><div class="t">Eine Geschichte ${hint}</div><div class="s">${n} von 57 Kapiteln · ${fmt(words(s))} Wörter</div></div></div>`;
+    }).join("") || '<p class="gate">Gerade ist es still. Aber nie für lange.</p>';
+
+    $("content").innerHTML = `
+      <section>
+        <div class="kick">Bereits ans Licht gebracht</div>
+        <div class="stats">
+          <div class="stat"><b data-n="${done.length}">0</b><span>Geschichten</span></div>
+          <div class="stat"><b data-n="${totalCh}">0</b><span>Kapitel</span></div>
+          <div class="stat"><b data-n="${totalWords}">0</b><span>Wörter geschrieben</span></div>
+          <div class="stat"><b data-n="${hours}">0</b><span>Stunden zum Lesen</span></div>
+        </div>
+      </section>
+      <section>
+        <div class="kick">Im Entstehen</div>
+        <div class="growing">${growHtml}</div>
+      </section>
+      <section>
+        <div class="kick">Noch im Dunkeln</div>
+        <div class="dark">${fmt(dark)}</div>
+        <div class="darktxt">Geschichten warten darauf, gerufen zu werden.</div>
+      </section>
+      <section>
+        ${when ? `<div class="last">Zuletzt hat sich etwas bewegt: <b>${ago(when)}</b></div>` : ""}
+        <div class="foot">Um Mitternacht sieht der Mond nach, was neu ist.</div>
+        <a class="btn ghost" href="lesen.html">Zur Bibliothek</a>
+      </section>`;
+    document.querySelectorAll(".stat b").forEach(b => countUp(b, +b.dataset.n));
+    reveal();
+  }
+
+  await load(true);
+  setInterval(() => { if (document.visibilityState === "visible") load(false); }, 10 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(false); });
+})();
+</script>
+</body>
+</html>

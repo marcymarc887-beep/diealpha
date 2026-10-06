@@ -255,7 +255,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const app = document.getElementById("app");
   const SBC = JSON.parse(document.getElementById("sbcfg").textContent);
   let DATA = JSON.parse(document.getElementById("data").textContent);   // nur in der lokalen Vorschau eingebettet
-  let sb = null, user = null;
+  let sb = null, user = null, metaText = "";
   const fail = msg => { app.innerHTML = `<div class="loading"><div>${msg}<br><br><a class="btn" href="index.html">Zur Anmeldung</a></div></div>`; };
   if (!DATA) {
     app.innerHTML = '<div class="loading">Lädt …</div>';
@@ -266,7 +266,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       user = session.user;
       const r = await sb.storage.from(SBC.bucket).download("meta.json");
       if (r.error) throw r.error;
-      DATA = JSON.parse(await r.data.text());
+      metaText = await r.data.text();
+      DATA = JSON.parse(metaText);
     } catch (e) { return fail("Die Bibliothek konnte nicht geladen werden."); }
   }
   const STORIES = DATA.stories;
@@ -323,9 +324,37 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     pushSoon();
     document.addEventListener("visibilitychange", async () => {
       if (document.visibilityState === "hidden") pushNow();
-      else if (await pull()) { checkAch(); if (!document.body.classList.contains("reading")) route(); }
+      else {
+        if (await pull()) { checkAch(); if (!document.body.classList.contains("reading")) route(); }
+        if (new Date(lastCheck).toDateString() !== new Date().toDateString() || Date.now() - lastCheck > 6 * 3600e3) checkLibrary();
+      }
     });
   }
+
+  /* ---------- Bibliothek auf neue Bücher prüfen: täglich um Mitternacht und beim Zurückkehren in die App ---------- */
+  let lastCheck = Date.now(), reloadPending = false;
+  async function applyUpdate() {
+    await pushNow();                       // Fortschritt sichern, dann frisch laden
+    location.reload();
+  }
+  async function checkLibrary() {
+    if (!sb || reloadPending) return;
+    lastCheck = Date.now();
+    try {
+      const r = await sb.storage.from(SBC.bucket).download("meta.json");
+      if (r.error) return;
+      const fresh = await r.data.text();
+      if (!fresh || fresh === metaText) return;
+      reloadPending = true;
+      if (!document.body.classList.contains("reading") && document.visibilityState === "visible") return applyUpdate();
+      libToast("Neu in der Bibliothek", "Die Bibliothek aktualisiert sich, sobald du das Buch verlässt.");
+    } catch (e) {}
+  }
+  window.addEventListener("hashchange", () => { if (reloadPending && !location.hash.startsWith("#/read")) applyUpdate(); });
+  (function midnight() {
+    const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 1 + Math.floor(Math.random() * 4));
+    setTimeout(() => { checkLibrary(); midnight(); }, next - n);
+  })();
 
   /* ---------- Kapiteltexte nachladen (online liegen sie je Buch in einer eigenen Datei) ---------- */
   async function ensureBlocks(st) {
@@ -388,7 +417,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const achToastQ = [];
   let achToastBusy = false;
   function achToast(img, kick, title) {
-    achToastQ.push({ img, kick, title });
+    achToastQ.push({ img, kick, title, go: "#/erfolge" });
+    if (!achToastBusy) nextToast();
+  }
+  function libToast(kick, title) {
+    achToastQ.push({ img: "", kick, title, go: null });
     if (!achToastBusy) nextToast();
   }
   function nextToast() {
@@ -396,7 +429,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!t) { achToastBusy = false; return; }
     achToastBusy = true;
     el.innerHTML = `${t.img ? `<img src="${t.img}" alt="">` : ""}<div><div class="tk">${esc(t.kick)}</div><b>${esc(t.title)}</b></div>`;
-    el.onclick = () => { el.classList.remove("show"); location.hash = "#/erfolge"; };
+    el.onclick = () => { el.classList.remove("show"); if (t.go) location.hash = t.go; };
     requestAnimationFrame(() => el.classList.add("show"));
     setTimeout(() => { el.classList.remove("show"); setTimeout(nextToast, 450); }, 4800);
   }

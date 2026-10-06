@@ -82,7 +82,7 @@ section.on { opacity: 1; transform: none; }
   <div class="moonpct" id="moonpct">&nbsp;</div>
   <h1>Wolfsmond</h1>
   <p class="lead" id="lead">Etwas wächst. Nacht für Nacht.</p>
-  <p class="whisper" id="whisper">Mehr wird nicht verraten.</p>
+  <p class="whisper" id="whisper">Für Susanne. Mehr wird nicht verraten.</p>
   <div id="content"><p class="gate">Der Mond sammelt sich …</p></div>
 </main>
 
@@ -156,7 +156,6 @@ section.on { opacity: 1; transform: none; }
   if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
     try {
       const meta = await (await fetch("out/meta.json", { cache: "no-store" })).json();
-      $("whisper").textContent = "Lokale Vorschau. Mehr wird nicht verraten.";
       return render(meta, new Date(Date.now() - 3 * 3600e3));
     } catch (e) {}
   }
@@ -172,8 +171,6 @@ section.on { opacity: 1; transform: none; }
         <a class="btn" href="index.html">Anmelden</a></section>`;
       return reveal();
     }
-    const name = session.user.user_metadata && session.user.user_metadata.name;
-    if (name) $("whisper").textContent = `Für ${name}. Mehr wird nicht verraten.`;
   } catch (e) {
     $("content").innerHTML = '<p class="gate">Der Himmel ist gerade bedeckt. Versuch es später noch einmal.</p>';
     return;
@@ -244,7 +241,6 @@ section.on { opacity: 1; transform: none; }
       <section>
         ${when ? `<div class="last">Zuletzt hat sich etwas bewegt: <b>${ago(when)}</b></div>` : ""}
         <div class="foot">Um Mitternacht sieht der Mond nach, was neu ist.</div>
-        <a class="btn ghost" href="lesen.html">Zur Bibliothek</a>
       </section>`;
     document.querySelectorAll(".stat b").forEach(b => countUp(b, +b.dataset.n));
     reveal();

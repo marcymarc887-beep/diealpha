@@ -86,11 +86,8 @@ section.on { opacity: 1; transform: none; }
   <div id="content"><p class="gate">Der Mond sammelt sich …</p></div>
 </main>
 
-<script type="application/json" id="sbcfg">{"url": "https://kxqklzqyzcymiqxuloem.supabase.co", "key": "sb_publishable_SR9Gq_b6VMSbNqCs640nyA_gmxMnw4v", "bucket": "wolfsmond", "domain": "wolfsmond.app"}</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function () {
-  const SBC = JSON.parse(document.getElementById("sbcfg").textContent);
   const $ = id => document.getElementById(id);
   const fmt = n => Math.round(n).toLocaleString("de-DE");
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -152,81 +149,41 @@ section.on { opacity: 1; transform: none; }
     document.querySelectorAll("section").forEach((s, i) => setTimeout(() => s.classList.add("on"), 300 + i * 450));
   }
 
-  /* Lokale Vorschau (nur localhost): gebaute out/meta.json statt Supabase */
-  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-    try {
-      const meta = await (await fetch("out/meta.json", { cache: "no-store" })).json();
-      return render(meta, new Date(Date.now() - 3 * 3600e3));
-    } catch (e) {}
-  }
-
-  /* Daten aus Supabase (nur für angemeldete Leserinnen) */
-  let sb, sig = "";
-  try {
-    sb = supabase.createClient(SBC.url, SBC.key);
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) {
-      setMoon(0.06);
-      $("content").innerHTML = `<section><p class="gate">Der Mond zeigt sich nur denen, die eingeladen sind.</p>
-        <a class="btn" href="index.html">Anmelden</a></section>`;
-      return reveal();
-    }
-  } catch (e) {
-    $("content").innerHTML = '<p class="gate">Der Himmel ist gerade bedeckt. Versuch es später noch einmal.</p>';
-    return;
-  }
-
+  /* Zahlen aus stats.json – wird bei jedem Veröffentlichen aus dem Supabase-Stand erzeugt (nur Zahlen, keine Titel/Texte) */
+  let sig = "";
   async function load(first) {
     try {
-      const r = await sb.storage.from(SBC.bucket).download("meta.json");
-      if (r.error) throw r.error;
-      const text = await r.data.text();
+      const r = await fetch("stats.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const text = await r.text();
       if (!first && text === sig) return;
       sig = text;
-      const meta = JSON.parse(text);
-      let when = null;
-      try {
-        const l = await sb.storage.from(SBC.bucket).list("", { search: "meta.json" });
-        const f = (l.data || []).find(x => x.name === "meta.json");
-        if (f) when = new Date(f.updated_at || f.created_at);
-      } catch (e) {}
-      render(meta, when);
+      render(JSON.parse(text));
     } catch (e) {
       if (first) $("content").innerHTML = '<p class="gate">Der Himmel ist gerade bedeckt. Versuch es später noch einmal.</p>';
     }
   }
 
-  function render(meta, when) {
-    const all = meta.stories || [];
-    const kap = st => st.chapters || [];
-    const words = st => kap(st).reduce((a, c) => a + (c.words || 0), 0);
-    const done = all.filter(s => s.status === "fertig");
-    const grow = all.filter(s => s.status === "laufend").sort((a, b) => b.nr - a.nr);
-    const dark = all.filter(s => s.status !== "fertig" && s.status !== "laufend").length;
-    const written = all.filter(s => s.status === "fertig" || s.status === "laufend");
-    const totalWords = written.reduce((a, s) => a + words(s), 0);
-    const totalCh = written.reduce((a, s) => a + kap(s).length, 0);
-    const hours = done.reduce((a, s) => a + words(s), 0) / 230 / 60;
-    const f = all.length ? done.length / all.length : 0;
-
+  function render(st) {
+    const f = st.gesamt ? st.fertig / st.gesamt : 0;
     setMoon(f);
     $("moonpct").textContent = `Der Mond ist zu ${Math.round(f * 100)} % gefüllt`;
 
-    const growHtml = grow.map(s => {
-      const n = kap(s).length, p = Math.min(1, n / 57);
+    const growHtml = (st.laufend || []).map(g => {
+      const p = Math.min(1, g.kapitel / st.ziel);
       const hint = p < .25 ? "regt sich" : p < .5 ? "nimmt Gestalt an" : p < .8 ? "wird stärker" : "ist fast so weit";
       return `<div class="grow"><svg viewBox="0 0 44 44">${moonSvg(p, 44, false)}</svg>
-        <div><div class="t">Eine Geschichte ${hint}</div><div class="s">${n} von 57 Kapiteln · ${fmt(words(s))} Wörter</div></div></div>`;
+        <div><div class="t">Eine Geschichte ${hint}</div><div class="s">${g.kapitel} von ${st.ziel} Kapiteln · ${fmt(g.woerter)} Wörter</div></div></div>`;
     }).join("") || '<p class="gate">Gerade ist es still. Aber nie für lange.</p>';
 
     $("content").innerHTML = `
       <section>
         <div class="kick">Bereits ans Licht gebracht</div>
         <div class="stats">
-          <div class="stat"><b data-n="${done.length}">0</b><span>Geschichten</span></div>
-          <div class="stat"><b data-n="${totalCh}">0</b><span>Kapitel</span></div>
-          <div class="stat"><b data-n="${totalWords}">0</b><span>Wörter geschrieben</span></div>
-          <div class="stat"><b data-n="${hours}">0</b><span>Stunden zum Lesen</span></div>
+          <div class="stat"><b data-n="${st.fertig}">0</b><span>Geschichten</span></div>
+          <div class="stat"><b data-n="${st.kapitel}">0</b><span>Kapitel</span></div>
+          <div class="stat"><b data-n="${st.woerter}">0</b><span>Wörter geschrieben</span></div>
+          <div class="stat"><b data-n="${st.lesewoerter / 230 / 60}">0</b><span>Stunden zum Lesen</span></div>
         </div>
       </section>
       <section>
@@ -235,11 +192,11 @@ section.on { opacity: 1; transform: none; }
       </section>
       <section>
         <div class="kick">Noch im Dunkeln</div>
-        <div class="dark">${fmt(dark)}</div>
+        <div class="dark">${fmt(st.dunkel)}</div>
         <div class="darktxt">Geschichten warten darauf, gerufen zu werden.</div>
       </section>
       <section>
-        ${when ? `<div class="last">Zuletzt hat sich etwas bewegt: <b>${ago(when)}</b></div>` : ""}
+        ${st.stand ? `<div class="last">Zuletzt hat sich etwas bewegt: <b>${ago(new Date(st.stand))}</b></div>` : ""}
         <div class="foot">Um Mitternacht sieht der Mond nach, was neu ist.</div>
       </section>`;
     document.querySelectorAll(".stat b").forEach(b => countUp(b, +b.dataset.n));

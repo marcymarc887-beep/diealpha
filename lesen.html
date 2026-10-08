@@ -106,7 +106,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .stats { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 16px; }
 .chip.g { border-color: rgba(232,180,79,.55); color: var(--accent); }
-.chip.p { border-color: rgba(194,52,77,.55); color: #f0a3b1; }
+.chip.p { border-color: rgba(194,52,77,.55); color: #f0a3b1; display: none; }
+body.showp .chip.p { display: inline-block; }
+.chip.ptoggle { cursor: pointer; border-style: dashed; border-color: rgba(194,52,77,.45); color: var(--muted); background: transparent; }
+.chip.ptoggle .aus, body.showp .chip.ptoggle .an { display: none; }
+body.showp .chip.ptoggle .aus { display: inline; }
 .tools .gsel { flex-basis: 100%; }
 .gh { display: flex; justify-content: space-between; align-items: baseline; font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--accent); margin: 18px 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 .gh span { font-family: Inter, sans-serif; font-size: 12px; color: var(--muted); }
@@ -580,7 +584,21 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     flush();
     return h;
   }
-  const chipsHtml = st => `<div class="chips">${(st.genres || []).filter(g => GENRES[g]).map(g => `<span class="chip g">${esc(GENRES[g])}</span>`).join("")}${(st.tags || []).map(t => `<span class="chip">${esc(t)}</span>`).join("")}${(st.praktiken || []).filter(t => !(st.tags || []).includes(t)).map(t => `<span class="chip p">${esc(t)}</span>`).join("")}</div>`;
+  /* Praktiken-Tags: standardmäßig verborgen, per Knopf einblendbar (Wahl wird in prefs gemerkt) */
+  const pChips = st => {
+    const list = (st.praktiken || []).filter(t => !(st.tags || []).includes(t));
+    if (!list.length) return "";
+    return list.map(t => `<span class="chip p">${esc(t)}</span>`).join("") +
+      `<button type="button" class="chip ptoggle"><span class="an">Praktiken anzeigen</span><span class="aus">Praktiken ausblenden</span></button>`;
+  };
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".ptoggle")) return;
+    e.preventDefault(); e.stopPropagation();
+    prefs.showP = !prefs.showP;
+    save("prefs", prefs);
+    document.body.classList.toggle("showp", prefs.showP);
+  });
+  const chipsHtml = st => `<div class="chips">${(st.genres || []).filter(g => GENRES[g]).map(g => `<span class="chip g">${esc(GENRES[g])}</span>`).join("")}${(st.tags || []).map(t => `<span class="chip">${esc(t)}</span>`).join("")}${pChips(st)}</div>`;
 
   function viewLibrary() {
     let h = header() + '<div class="wrap"><div class="sec"><h3>Meine Bibliothek</h3></div>';
@@ -750,6 +768,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const parts = (location.hash.replace(/^#\/?/, "") || "").split("/");
     const reading = parts[0] === "read";
     document.body.classList.toggle("reading", reading);
+    document.body.classList.toggle("showp", !!prefs.showP);
     const tab = parts[0] === "bibliothek" ? "lib" : parts[0] === "gelesen" ? "done" : parts[0] === "erfolge" ? "ach" : "home";
     document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.tab === tab && !reading && parts[0] !== "story"));
     let html;

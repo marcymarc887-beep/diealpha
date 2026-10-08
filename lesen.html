@@ -196,6 +196,22 @@ body.reading .tabbar { display: none; }
 
 /* ---------- Sortieren & Filtern ---------- */
 .tools { display: flex; gap: 8px; margin: -4px 0 14px; flex-wrap: wrap; }
+.moonbtn { flex: 0 0 42px; height: 40px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); color: var(--muted); display: grid; place-items: center; }
+.moonbtn svg { width: 18px; height: 18px; }
+.moonbtn.on { color: #f0a3b1; border-color: rgba(194,52,77,.55); }
+.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; max-height: 46vh; overflow-y: auto; }
+.pf-chip { font-size: 13px; padding: 7px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: #d9d4e2; }
+.pf-chip small { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.pf-chip.mit { background: rgba(194,52,77,.28); border-color: rgba(194,52,77,.75); color: #fff; }
+.pf-chip.ohne { text-decoration: line-through; color: var(--muted); border-style: dashed; }
+.pf-chip:disabled { opacity: .3; }
+.pf-hint { font-size: 12px; color: var(--muted); margin: -2px 0 12px; }
+.pf-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
+.pf-row input { accent-color: #c2344d; width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; }
+.pf-active { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: #f0a3b1;
+  border: 1px solid rgba(194,52,77,.45); border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; }
+.pf-active button { color: var(--muted); font-size: 18px; line-height: 1; padding: 0 4px; }
+.chip.p { cursor: pointer; }
 .tools select { flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--text); background: var(--card);
   border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; appearance: none; -webkit-appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
@@ -532,6 +548,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function tools(withFilter) {
     const opt = (o, cur) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${v}</option>`).join("");
     return `<div class="tools"><select id="sortSel" aria-label="Sortieren">${opt(SORTS, prefs.sort || "nr")}</select>` +
+      (withFilter === false ? `<button type="button" id="moonBtn" class="moonbtn${pfActive() ? " on" : ""}" aria-label="Feinauswahl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 2.5a9.5 9.5 0 1 0 7 15.9A8 8 0 0 1 14.5 2.5z"/></svg></button>` : "") +
       (withFilter ? `<select id="filterSel" aria-label="Filtern">${opt(FILTERS, prefs.filter || "alle")}</select>` : "") +
       (GENRE_KEYS.length ? `<select id="genreSel" aria-label="Genre" class="gsel">${opt(Object.assign({ alle: "Alle Genres" }, GENRES), prefs.genre || "alle")}</select>` : "") + `</div>`;
   }
@@ -602,6 +619,17 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   function viewLibrary() {
     let h = header() + '<div class="wrap"><div class="sec"><h3>Meine Bibliothek</h3></div>';
+    if (pfActive()) {
+      const hits = arrange(STORIES.filter(s => pfMatch(s))).sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+      const was = [...pf.mit.map(t => "mit " + t), ...pf.ohne.map(t => "ohne " + t)].join(", ");
+      h += tools(false) + `<div class="pf-active"><span>${esc(was)} · ${hits.length}</span><button type="button" id="pfClear" aria-label="Auswahl aufheben">✕</button></div>`;
+      if (!hits.length) h += '<div class="empty">Keine passende Geschichte.</div>';
+      hits.forEach(s => {
+        h += `<a class="libitem" href="#/story/${s.id}">${tile(s, "", true)}<div class="info"><b>${esc(s.title)}</b>
+          <small>${s.status === "demnaechst" ? "Demnächst" : (s.chapters ? s.chapters.length + " Kapitel" : "")}${isDone(s) ? " · gelesen" : ""}</small></div></a>`;
+      });
+      return h + "</div>";
+    }
     const list = arrange(STORIES.filter(s => s.status !== "demnaechst" && !isDone(s)));
     h += tools(false);
     if (!list.length) h += '<div class="empty">Noch keine Geschichten.</div>';
@@ -712,6 +740,66 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       </div>
     </div>`;
   }
+
+  /* ---------- Feinauswahl nach Praktiken (dezent hinter der Mondsichel, wird NICHT gespeichert) ---------- */
+  let pf = { mit: [], ohne: [], soon: false };
+  const PF_MAX = 3;
+  const PF_TAGS = (() => {
+    const n = {};
+    STORIES.forEach(s => (s.praktiken || []).forEach(t => { n[t] = (n[t] || 0) + 1; }));
+    return Object.keys(n).sort((a, b) => n[b] - n[a]);
+  })();
+  function pfActive() { return pf.mit.length + pf.ohne.length > 0; }
+  function pfMatch(s, mit, ohne, soon) {
+    mit = mit || pf.mit; ohne = ohne || pf.ohne; soon = soon === undefined ? pf.soon : soon;
+    if (s.status === "demnaechst" && !soon) return false;
+    const p = s.praktiken || [];
+    return mit.every(t => p.includes(t)) && !ohne.some(t => p.includes(t));
+  }
+  function pfCount(mit, ohne, soon) { return STORIES.filter(s => pfMatch(s, mit, ohne, soon)).length; }
+  function openPf() {
+    const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
+    const voll = pf.mit.length >= PF_MAX;
+    const chips = PF_TAGS.map(t => {
+      const st = pf.mit.includes(t) ? "mit" : pf.ohne.includes(t) ? "ohne" : "";
+      let n = "", dis = false;
+      if (!st) {
+        const c = voll ? pfCount(pf.mit, [...pf.ohne, t]) : pfCount([...pf.mit, t], pf.ohne);
+        n = c; dis = c === 0;
+      }
+      const mark = st === "mit" ? " ✓" : st === "ohne" ? " ✕" : "";
+      return `<button type="button" class="pf-chip ${st}" data-t="${esc(t)}" ${dis ? "disabled" : ""}>${esc(t)}${mark}${n !== "" ? `<small>${n}</small>` : ""}</button>`;
+    }).join("");
+    const total = pfCount();
+    sh.innerHTML = `<h4>Nach Vorlieben</h4>
+      <p class="pf-hint">Antippen: mit · nochmal: ohne · nochmal: egal. Höchstens ${PF_MAX}× „mit“.</p>
+      <div class="pf-chips">${chips}</div>
+      <div class="pf-row"><label><input type="checkbox" id="pfSoon" ${pf.soon ? "checked" : ""}>auch Demnächst (nur geplant)</label>
+        ${pfActive() ? '<button type="button" class="btn ghost" id="pfReset" style="padding:8px 14px">Zurücksetzen</button>' : ""}</div>
+      <button type="button" class="btn wide" id="pfGo" ${pfActive() ? "" : "disabled"}>${pfActive() ? (total === 1 ? "1 Geschichte zeigen" : total + " Geschichten zeigen") : "Tags auswählen"}</button>`;
+    bg.style.display = "block";
+    requestAnimationFrame(() => sh.classList.add("open"));
+    sh.onclick = e => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.id === "pfGo") { closeSheet(); if (location.hash !== "#/bibliothek") location.hash = "#/bibliothek"; else route(); return; }
+      if (b.id === "pfReset") { pf = { mit: [], ohne: [], soon: pf.soon }; return openPf(); }
+      const t = b.dataset.t; if (!t) return;
+      if (pf.mit.includes(t)) { pf.mit = pf.mit.filter(x => x !== t); pf.ohne.push(t); }
+      else if (pf.ohne.includes(t)) pf.ohne = pf.ohne.filter(x => x !== t);
+      else if (pf.mit.length < PF_MAX) pf.mit.push(t);
+      else pf.ohne.push(t);
+      openPf();
+    };
+    const so = document.getElementById("pfSoon");
+    if (so) so.onchange = () => { pf.soon = so.checked; openPf(); };
+  }
+  document.addEventListener("click", e => {
+    if (e.target.closest("#moonBtn")) { e.preventDefault(); return openPf(); }
+    if (e.target.closest("#pfClear")) { e.preventDefault(); pf = { mit: [], ohne: [], soon: false }; return route(); }
+    const c = e.target.closest(".chip.p");
+    if (c) { e.preventDefault(); pf = { mit: [c.textContent], ohne: [], soon: false }; if (location.hash !== "#/bibliothek") location.hash = "#/bibliothek"; else route(); }
+  });
 
   /* ---------- Einstellungen ---------- */
   function openSheet() {

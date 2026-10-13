@@ -234,6 +234,8 @@ body.reading .tabbar { display: none; }
 .adetail { text-align: center; }
 .adetail img { width: min(62vw, 260px); aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 3px solid #8d8a96; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .adetail.leg img { border-color: var(--accent); box-shadow: 0 0 30px rgba(232,180,79,.5); }
+.acard.myth .aimg { border-color: #cfd6ff; box-shadow: 0 0 22px rgba(170,185,255,.6), 0 0 6px rgba(232,180,79,.6); }
+.adetail.myth img { border-color: #cfd6ff; box-shadow: 0 0 36px rgba(170,185,255,.65), 0 0 10px rgba(232,180,79,.6); }
 .adetail h2 { font-family: "Cormorant Garamond", serif; font-size: 30px; margin: 14px 0 4px; line-height: 1.05; }
 .adetail .ak { color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
 .adetail p { color: #d6d1df; margin: 8px 0 6px; line-height: 1.5; }
@@ -302,12 +304,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log") pushSoon();
   }
-  let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done}}
+  let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done, start, again, re, last}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
   let removed = load("removed", {});     // {id: Zeitpunkt des Zurücksetzens} – damit andere Geräte es mitbekommen
-  let ach = load("ach", {});             // {achievementId: Zeitpunkt, _init: erste Prüfung} – einmal verdient, bleibt verdient
+  let ach = load("ach", {});             // {achievementId: Zeitpunkt, _init: erste Prüfung, "!id": angezeigt} – einmal verdient, bleibt verdient
+  let log = load("log", {});             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
 
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
   let pushT = 0;
@@ -315,7 +318,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   async function pushNow() {
     if (!sb) return;
     clearTimeout(pushT);
-    try { await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach }, updated_at: new Date().toISOString() }); } catch (e) {}
+    try { await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log }, updated_at: new Date().toISOString() }); } catch (e) {}
   }
   async function pull() {
     if (!sb) return false;
@@ -335,8 +338,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       });
       if (r.prefs && (r.prefs.t || 0) > (prefs.t || 0)) { prefs = r.prefs; changed = true; }
       Object.entries(r.ach || {}).forEach(([k, t]) => { if (!(k in ach) || t < ach[k]) { ach[k] = t; changed = true; } });
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); } catch (e) {}
+      Object.entries(r.log || {}).forEach(([d, e]) => {
+        const l = log[d] || (log[d] = { n: 0, h: [] });
+        if ((e.n || 0) > l.n) { l.n = e.n; changed = true; }
+        (e.h || []).forEach(x => { if (!l.h.includes(x)) { l.h.push(x); changed = true; } });
+      });
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -392,47 +400,124 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function words(st) { return (st.chapters || []).reduce((a, c) => a + c.words, 0); }
   function readTime(w) { const m = Math.round(w / 230); return m < 90 ? m + " Min." : "ca. " + Math.round(m / 60) + " Std."; }
-  function pct(st) { const p = progress[st.id]; if (!p || !st.chapters) return 0; if (p.done) return 100; return Math.round(((p.read || []).length / st.chapters.length) * 100); }
+  function pct(st) { const p = progress[st.id]; if (!p || !st.chapters) return 0; if (p.done && !p.re) return 100; return Math.round(((p.read || []).length / st.chapters.length) * 100); }
   const isDone = st => !!(progress[st.id] && progress[st.id].done);
+  const isRe = st => !!(progress[st.id] && progress[st.id].re);   // fertiges Buch wird gerade nochmal gelesen
+  function dayKey(d) { const z = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); }
+  /* Ein Kapitel wurde gerade gelesen: ins Lesetagebuch (Tag, Uhrzeit) und Beginn des Buchs merken. */
+  function logChapter(p) {
+    const now = new Date(), k = dayKey(now), e = log[k] || (log[k] = { n: 0, h: [] });
+    e.n++;
+    if (!e.h.includes(now.getHours())) e.h.push(now.getHours());
+    if (!p.start) p.start = now.getTime();
+    save("log", log);
+  }
   function markRead(id, ch) {
     const st = byId[id]; if (!st) return;
     const p = progress[id] = Object.assign({ read: [], ch: 0, pos: 0 }, progress[id]);
-    if (!p.read.includes(ch)) p.read.push(ch);
+    if (!p.read.includes(ch)) { p.read.push(ch); logChapter(p); }
     p.t = Date.now();
     save("progress", progress);
     checkAch();
   }
-  function finishBook(id) {
+  function finishBook(id, ch) {
     const st = byId[id]; if (!st) return;
     const p = progress[id] = Object.assign({ read: [], ch: 0, pos: 0 }, progress[id]);
+    if (ch != null && !p.read.includes(ch)) logChapter(p);
     p.read = st.chapters.map((_, i) => i);
-    p.done = Date.now(); p.t = p.done; p.ch = 0; p.pos = 0;
+    if (p.re) { p.again = (p.again || 0) + 1; p.re = false; p.last = Date.now(); }   // erneut komplett gelesen – done bleibt das erste Mal
+    else p.done = Date.now();
+    p.t = Date.now(); p.ch = 0; p.pos = 0;
     save("progress", progress);
     checkAch();
   }
   function resetBook(id) { delete progress[id]; removed[id] = Date.now(); save("removed", removed); save("progress", progress); }
+  function rereadBook(id) {   // „Nochmal lesen“: Kapitel leeren, aber gelesen bleibt gelesen
+    const p = progress[id]; if (!p) return;
+    Object.assign(p, { re: true, read: [], ch: 0, pos: 0, t: Date.now() });
+    save("progress", progress);
+  }
 
   /* ---------- Errungenschaften ---------- */
   const ACH = DATA.app.achievements || [];
   const achById = Object.fromEntries(ACH.map(a => [a.id, a]));
-  const ACH_CATS = [["band", "Besondere Bände"], ["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["genre", "Genres"], ["meister", "Meisterschaft der Genres"]];
+  const ACH_CATS = [["reihen", "Reihen & besondere Bände"], ["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["rhythmus", "Rhythmus"],
+    ["praktiken", "Praktiken"], ["sammler", "Sammler"], ["genre", "Genres"], ["meister", "Meisterschaft der Genres"]];
+  const achKat = a => a.kat || a.typ;
+  const DAY = 864e5;
+  /* Mondalter in Tagen am Mittag des Tages (synodischer Monat ab Neumond 06.01.2000 18:14 UTC) – Vollmond: 13,8–15,8 */
+  function moon(key) {
+    const [y, m, d] = key.split("-").map(Number);
+    const x = (new Date(y, m - 1, d, 12).getTime() - Date.UTC(2000, 0, 6, 18, 14)) / DAY / 29.530589;
+    return { age: (x - Math.floor(x)) * 29.530589, lun: Math.floor(x) };
+  }
   function readStats() {
-    let books = 0, w = 0; const genres = {}, done = new Set();
+    let books = 0, w = 0, chapters = 0, maxAgain = 0, richest = 0, oneDay = false, fresh3 = 0;
+    const genres = {}, done = new Set(), prak = {}, tags = {}, doneTimes = [];
     STORIES.forEach(st => {
       const p = progress[st.id]; if (!p || !st.chapters) return;
       if (p.done) {
-        books++; w += words(st); done.add(st.nr);
+        books++; w += words(st); done.add(st.nr); doneTimes.push(p.done);
+        chapters += st.chapters.length * (1 + (p.again || 0)) + (p.re ? (p.read || []).length : 0);
+        maxAgain = Math.max(maxAgain, p.again || 0);
         (st.genres || []).forEach(g => { genres[g] = (genres[g] || 0) + 1; });
-      } else (p.read || []).forEach(i => { const c = st.chapters[i]; if (c) w += c.words; });
+        (st.praktiken || []).forEach(t => { prak[t] = (prak[t] || 0) + 1; });
+        (st.tags || []).forEach(t => { tags[t] = (tags[t] || 0) + 1; });
+        richest = Math.max(richest, (st.praktiken || []).length);
+        if (p.start && dayKey(new Date(p.start)) === dayKey(new Date(p.done))) oneDay = true;
+        if (st.seit) { const sd = new Date(st.seit + "T00:00:00").getTime(); if (p.done >= sd && p.done - sd < 3 * DAY) fresh3++; }
+      } else {
+        chapters += (p.read || []).length;
+        (p.read || []).forEach(i => { const c = st.chapters[i]; if (c) w += c.words; });
+      }
     });
-    return { books, hours: w / 230 / 60, genres, done };
+    let pairs = 0;
+    STORIES.forEach(st => { if (st.vorgaenger != null && done.has(st.nr) && done.has(st.vorgaenger)) pairs++; });
+    let row = 0; while (done.has(row + 1)) row++;           // Bände 1…row lückenlos gelesen
+    doneTimes.sort((a, b) => a - b);
+    let burst = 0;                                           // meiste Bücher innerhalb von 7 Tagen
+    for (let i = 0, j = 0; i < doneTimes.length; i++) { while (doneTimes[i] - doneTimes[j] > 7 * DAY) j++; burst = Math.max(burst, i - j + 1); }
+    // Lesetagebuch
+    const days = Object.keys(log).filter(k => log[k].n > 0).sort();
+    let streak = 0, cur = 0, prev = null, gap = 0, maxDay = 0;
+    const hourDays = h => days.filter(k => log[k].h.some(h)).length, lunations = new Set();
+    days.forEach(k => {
+      const t = new Date(k + "T12:00:00").getTime();
+      const diff = prev == null ? null : Math.round((t - prev) / DAY);
+      cur = diff === 1 ? cur + 1 : 1; streak = Math.max(streak, cur);
+      if (diff != null) gap = Math.max(gap, diff - 1);
+      prev = t; maxDay = Math.max(maxDay, log[k].n);
+      const mo = moon(k); if (mo.age >= 13.8 && mo.age <= 15.8) lunations.add(mo.lun);
+    });
+    return { books, hours: w / 230 / 60, genres, done, prak, tags, chapters, maxAgain, richest, oneDay, fresh3, pairs, row, burst,
+      streak, gap, maxDay, fullMoons: lunations.size, hourDays, dates: new Set(days.map(k => k.slice(5))) };
   }
   function achMet(a, s) {
-    if (a.typ === "band") return s.done.has(a.band);
-    if (a.typ === "buecher") return s.books >= a.ziel;
-    if (a.typ === "zeit") return s.hours >= a.ziel;
-    if (a.typ === "genre") return (s.genres[a.genre] || 0) >= 1;
-    if (a.typ === "meister") return (s.genres[a.genre] || 0) >= a.ziel;
+    switch (a.typ) {
+      case "band": return s.done.has(a.band);
+      case "buecher": return s.books >= a.ziel;
+      case "zeit": return s.hours >= a.ziel;
+      case "genre": return (s.genres[a.genre] || 0) >= 1;
+      case "meister": return (s.genres[a.genre] || 0) >= a.ziel;
+      case "praktik": return (s.prak[a.tag] || 0) >= (a.ziel || 1);
+      case "praktik-alle": return (DATA.app.praktikenTags || []).length > 0 && DATA.app.praktikenTags.every(t => s.prak[t]);
+      case "praktik-reich": return s.richest >= a.ziel;
+      case "straehne": return s.streak >= a.ziel;
+      case "uhrzeit": return s.hourDays(h => h >= a.von && h < a.bis) >= a.ziel;
+      case "vollmond": return s.fullMoons >= a.ziel;
+      case "ein-tag-buch": return s.oneDay;
+      case "kapitel-tag": return s.maxDay >= a.ziel;
+      case "heimkehr": return s.gap >= a.ziel;
+      case "datum": return s.dates.has(a.datum);
+      case "paar": return s.pairs >= a.ziel;
+      case "tag": return (s.tags[a.tag] || 0) >= a.ziel;
+      case "bandreihe": return s.row >= a.ziel;
+      case "alle-genres": return GENRE_KEYS.length > 0 && GENRE_KEYS.every(g => (s.genres[g] || 0) >= a.ziel);
+      case "kapitel": return s.chapters >= a.ziel;
+      case "nochmal": return s.maxAgain >= a.ziel;
+      case "frisch": return s.fresh3 >= a.ziel;
+      case "heisshunger": return s.burst >= a.ziel;
+    }
     return false;
   }
   const achToastQ = [];
@@ -456,28 +541,39 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* Prüft alle Errungenschaften und vergibt, was erfüllt ist. Beim allerersten Mal (Feature neu)
      werden bereits erfüllte nachträglich vergeben – mit einem einzigen Sammelhinweis statt vieler Einzelmeldungen. */
+  /* Erfolge ohne Bild werden schon vergeben, aber erst gezeigt und gemeldet, sobald ihr Bild da ist ("!id" = gemeldet). */
   function checkAch() {
     if (!ACH.length) return;
-    const s = readStats(), now = Date.now(), fresh = [];
-    ACH.forEach(a => { if (!(a.id in ach) && achMet(a, s)) { ach[a.id] = now; fresh.push(a); } });
-    const first = !ach._init;
+    const s = readStats(), now = Date.now();
+    let dirty = false;
+    ACH.forEach(a => { if (!(a.id in ach) && achMet(a, s)) { ach[a.id] = now; dirty = true; } });
+    const first = !ach._init, upd = !ach._v2;
     if (first) ach._init = now;
-    if (!fresh.length && !first) return;
+    if (upd) {   // erster Start mit den neuen Erfolgen (13.10.2026): schon Gemeldetes still als gemeldet vermerken
+      ach._v2 = now;
+      ACH.forEach(a => { if (a.id in ach && ach[a.id] < now) ach["!" + a.id] = now; });
+      dirty = true;
+    }
+    const fresh = ACH.filter(a => a.img && a.id in ach && !(("!" + a.id) in ach));
+    fresh.forEach(a => { ach["!" + a.id] = now; });
+    if (fresh.length) dirty = true;
+    if (!dirty) return;
     save("ach", ach);
     if (!fresh.length) return;
-    if (first && fresh.length > 1) {
+    if ((first || upd) && fresh.length > 1 || fresh.length > 3) {
       const top = fresh[fresh.length - 1];
-      achToast(top.img, "Errungenschaften", fresh.length + " bereits verdient");
+      achToast(top.img, "Errungenschaften", fresh.length + (first || upd ? " bereits verdient" : " neue Errungenschaften"));
     } else fresh.forEach(a => achToast(a.img, "Errungenschaft freigeschaltet", a.titel));
     if ((location.hash || "").startsWith("#/erfolge")) route();
   }
+  const stufeCls = a => a.stufe === "Mythisch" ? "leg myth" : a.stufe === "Legendär" ? "leg" : "";
   function fmtHours(h) { return h < 1 ? Math.round(h * 60) + " Min." : (h < 10 ? h.toFixed(1).replace(".", ",") : Math.round(h).toLocaleString("de-DE")) + " Std."; }
   function openAch(id) {
     const a = achById[id]; if (!a) return;
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
-    const cat = a.typ === "genre" ? (GENRES[a.genre] || "Genre") : a.typ === "meister" ? "Meisterschaft · " + (GENRES[a.genre] || "") : (ACH_CATS.find(c => c[0] === a.typ) || [, ""])[1];
+    const cat = a.typ === "genre" ? (GENRES[a.genre] || "Genre") : a.typ === "meister" ? "Meisterschaft · " + (GENRES[a.genre] || "") : (ACH_CATS.find(c => c[0] === achKat(a)) || [, ""])[1];
     sh.onclick = null;
-    sh.innerHTML = `<div class="adetail ${a.stufe === "Legendär" ? "leg" : ""}">${a.img ? `<img src="${a.img}" alt="">` : ""}
+    sh.innerHTML = `<div class="adetail ${stufeCls(a)}">${a.img ? `<img src="${a.img}" alt="">` : ""}
       <div class="ak" style="margin-top:14px">${esc(cat)}${a.stufe ? " · " + esc(a.stufe) : ""}</div>
       <h2>${esc(a.titel)}</h2><p>${esc(a.text || "")}</p><small>Erhalten am ${fmtDate(ach[a.id])}</small></div>`;
     bg.style.display = "block";
@@ -561,7 +657,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <div class="cover ${st.cover ? "img" : ""}">${coverArt(st)}<div class="ct">${esc(st.title)}</div>${soon ? '<span class="lock">Demnächst</span>' : ""}${isDone(st) ? '<span class="donebadge">Gelesen</span>' : ""}</div>
       <div class="tm">${esc(st.title)}</div>
       <div class="ts">${soon ? "In Arbeit" : (st.chapters.length + " Kapitel")}</div>
-      ${p && !isDone(st) ? `<div class="pbar"><i style="width:${p}%"></i></div>` : ""}
+      ${p && (!isDone(st) || isRe(st)) ? `<div class="pbar"><i style="width:${p}%"></i></div>` : ""}
     </${tag}>`;
   }
 
@@ -572,8 +668,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   function viewHome() {
     const ready = STORIES.filter(s => s.status !== "demnaechst");
-    const inProg = ready.filter(s => progress[s.id] && !isDone(s)).sort((a, b) => (progress[b.id].t || 0) - (progress[a.id].t || 0));
-    const done = ready.filter(isDone).sort((a, b) => progress[b.id].done - progress[a.id].done);
+    const inProg = ready.filter(s => progress[s.id] && (!isDone(s) || isRe(s))).sort((a, b) => (progress[b.id].t || 0) - (progress[a.id].t || 0));
+    const done = ready.filter(s => isDone(s) && !isRe(s)).sort((a, b) => progress[b.id].done - progress[a.id].done);
     let h = header() + '<div class="wrap">';
     if (DATA.app.introImage || DATA.app.intro) {
       h += `<div class="intro">${DATA.app.introImage ? `<a href="#/bibliothek" class="introimg"><img src="${DATA.app.introImage}" alt="Wolfsmond"></a>` : ""}
@@ -657,19 +753,19 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   function viewAch() {
     const s = readStats();
-    const got = ACH.filter(a => a.id in ach);
+    const got = ACH.filter(a => a.id in ach && a.img);
     let h = header() + `<div class="wrap"><div class="sec"><h3>Errungenschaften</h3><span>${got.length} freigeschaltet</span></div>
       <div class="astats"><div><b>${s.books}</b><small>${s.books === 1 ? "Buch" : "Bücher"} gelesen</small></div>
       <div><b>${fmtHours(s.hours).replace(" Std.", "").replace(" Min.", "")}</b><small>${s.hours < 1 ? "Minuten" : "Stunden"} Lesezeit</small></div>
       <div><b>${Object.keys(s.genres).filter(g => GENRES[g]).length}</b><small>Genres entdeckt</small></div></div>`;
     if (!got.length) return h + '<div class="empty">Noch keine Errungenschaften.<br>Lies weiter – die erste wartet schon auf dich.</div></div>';
     ACH_CATS.forEach(([k, label]) => {
-      let list = got.filter(a => a.typ === k);
+      let list = got.filter(a => achKat(a) === k);
       if (!list.length) return;
       if (k === "genre" || k === "meister") list.sort((a, b) => (GENRE_KEYS.indexOf(a.genre) - GENRE_KEYS.indexOf(b.genre)) || (a.ziel || 0) - (b.ziel || 0));
-      else list.sort((a, b) => a.ziel - b.ziel);
+      else if (k === "buecher" || k === "zeit") list.sort((a, b) => a.ziel - b.ziel);
       h += `<div class="sec"><h3>${label}</h3><span>${list.length}</span></div>
-        <div class="achgrid">${list.map(a => `<button class="acard ${a.stufe === "Legendär" ? "leg" : ""}" data-a="${a.id}">
+        <div class="achgrid">${list.map(a => `<button class="acard ${stufeCls(a)}" data-a="${a.id}">
           <div class="aimg">${a.img ? `<img src="${a.img}" alt="" loading="lazy" decoding="async">` : ""}</div>
           <b>${esc(a.titel)}</b><small>${a.typ === "genre" || a.typ === "meister" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div>`;
     });
@@ -692,7 +788,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     let h = back + `<div class="wrap"><div class="dhead">${tile(st)}<h1>${esc(st.title)}</h1><p class="tag">${esc(st.tagline || "")}</p>
       <div class="stats">${st.chapters.length} Kapitel · ${readTime(w)} Lesezeit · ${st.status === "fertig" ? "Abgeschlossen" : "Laufend"}</div>
       ${chipsHtml(st)}
-      ${p.done ? `<div class="donebox">✓ Gelesen am ${fmtDate(p.done)}</div><a class="btn wide" href="javascript:void 0" id="again">Nochmal lesen</a>`
+      ${p.done ? `<div class="donebox">✓ Gelesen am ${fmtDate(p.done)}${p.again ? ` · ${p.again + 1}× gelesen` : ""}</div>` : ""}
+      ${p.done && !p.re ? `<a class="btn wide" href="javascript:void 0" id="again">Nochmal lesen</a>`
         : `<a class="btn wide" href="#/read/${st.id}/${Math.max(p.ch, 0)}">${p.ch >= 0 ? "Weiterlesen · Kapitel " + (p.ch + 1) : "Kapitel 1 lesen"}</a>`}
       <div class="dlinks">${p.done ? `<a href="javascript:void 0" id="undone">Wieder als ungelesen markieren</a>`
         : `<a href="javascript:void 0" id="markdone">Als gelesen markieren</a>${p.ch >= 0 ? `<a href="javascript:void 0" id="reset">Fortschritt zurücksetzen</a>` : ""}`}</div></div>
@@ -893,7 +990,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });
     if (parts[0] === "story") {
       const sid = parts[1];
-      on("again", () => { resetBook(sid); location.hash = "#/read/" + sid + "/0"; });
+      on("again", () => { rereadBook(sid); location.hash = "#/read/" + sid + "/0"; });
       on("undone", () => { resetBook(sid); route(); });
       on("reset", () => { if (confirm("Fortschritt für dieses Buch zurücksetzen?")) { resetBook(sid); route(); } });
       on("markdone", () => { finishBook(sid); route(); });
@@ -904,12 +1001,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const ch = Math.min(Math.max(parseInt(parts[2] || "0", 10), 0), st.chapters.length - 1);
       const prev = progress[id];
       const restore = prev && prev.ch === ch ? prev.pos || 0 : 0;
-      progress[id] = Object.assign({ read: [] }, prev, prev && prev.done ? { t: Date.now() } : { ch, pos: restore, t: Date.now() });
+      progress[id] = Object.assign({ read: [] }, prev, prev && prev.done && !prev.re ? { t: Date.now() } : { ch, pos: restore, t: Date.now() });
       save("progress", progress);
       document.getElementById("aa").onclick = openSheet;
       on("nextch", () => markRead(id, ch));
       on("lastch", () => markRead(id, ch));
-      on("finish", () => finishBook(id));
+      on("finish", () => finishBook(id, ch));
       const bar = document.getElementById("rbar"), prog = document.getElementById("rprog");
       let lastY = 0, t = 0;
       const self = onScroll = () => {
@@ -924,8 +1021,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
           if (!p || onScroll !== self) return;
           p.pos = ratio;
           const neu = ratio > 0.9 && !p.read.includes(ch);
-          if (neu) p.read.push(ch);
-          if (p.done) p.pos = 0;
+          if (neu) { p.read.push(ch); logChapter(p); }
+          if (p.done && !p.re) p.pos = 0;
           save("progress", progress);
           if (neu) checkAch();
         }, 250);

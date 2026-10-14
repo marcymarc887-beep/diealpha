@@ -112,6 +112,10 @@ body.showp .chip.p { display: inline-block; }
 .chip.ptoggle .aus, body.showp .chip.ptoggle .an { display: none; }
 body.showp .chip.ptoggle .aus { display: inline; }
 .tools .gsel { flex-basis: 100%; }
+.tools .qsel { flex-basis: 100%; font: inherit; font-size: 14px; color: var(--text); background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 12px; min-width: 0; -webkit-appearance: none; appearance: none; }
+.acard.locked .aimg img, .adetail.locked img { filter: blur(7px) brightness(.35) grayscale(.4); }
+.acard.locked b { letter-spacing: 2px; }
 .gh { display: flex; justify-content: space-between; align-items: baseline; font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--accent); margin: 18px 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 .gh span { font-family: Inter, sans-serif; font-size: 12px; color: var(--muted); }
 .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: #d9d4e2; }
@@ -341,6 +345,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       Object.entries(r.log || {}).forEach(([d, e]) => {
         const l = log[d] || (log[d] = { n: 0, h: [] });
         if ((e.n || 0) > l.n) { l.n = e.n; changed = true; }
+        if (e.o && !l.o) { l.o = 1; changed = true; }
         (e.h || []).forEach(x => { if (!l.h.includes(x)) { l.h.push(x); changed = true; } });
       });
       mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log;
@@ -411,6 +416,32 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!e.h.includes(now.getHours())) e.h.push(now.getHours());
     if (!p.start) p.start = now.getTime();
     save("log", log);
+    timeEvents(false);
+  }
+  function logOpen() {   // App heute geöffnet (für „Treue Seele“)
+    const k = dayKey(new Date()), e = log[k] || (log[k] = { n: 0, h: [] });
+    if (!e.o) { e.o = 1; save("log", log); }
+  }
+  /* Geheime Erfolge, die die App direkt bei einem Ereignis vergibt */
+  function grant(id) { if (!achById[id] || id in ach) return; ach[id] = Date.now(); save("ach", ach); checkAch(); }
+  function timeEvents(open) {
+    const d = new Date(), hm = d.getHours() * 60 + d.getMinutes(), md = dayKey(d).slice(5);
+    if (hm === 213) grant("geh-hexenstunde");
+    if (open && (hm === 671 || hm === 1342)) grant("geh-wunsch");
+    if ((md === "12-31" && hm >= 1410) || (md === "01-01" && hm < 30)) grant("geh-silvester");
+  }
+  const SW = new Set(DATA.app.sw || []);
+  function secretWord(q) {
+    const w = q.normalize("NFC").trim().toLowerCase();
+    if (w === "herrin") grant("geh-herrin");
+    if (w.length < 3 || !SW.size || !(window.crypto && crypto.subtle)) return;
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(w)).then(b => {
+      const hex = Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, "0")).join("");
+      if (SW.has(hex)) grant("geh-zauberwort");
+    }).catch(() => {});
+  }
+  function bump(key, sub, n) {   // kleine Zähler nur auf diesem Gerät
+    const o = load(key, {}); o[sub] = (o[sub] || 0) + 1; save(key, o); return o[sub] >= n;
   }
   function markRead(id, ch) {
     const st = byId[id]; if (!st) return;
@@ -427,6 +458,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     p.read = st.chapters.map((_, i) => i);
     if (p.re) { p.again = (p.again || 0) + 1; p.re = false; p.last = Date.now(); }   // erneut komplett gelesen – done bleibt das erste Mal
     else p.done = Date.now();
+    if (st.nr === 0 && dayKey(new Date()).slice(5) === "01-15") grant("geh-anfang-geburtstag");
     p.t = Date.now(); p.ch = 0; p.pos = 0;
     save("progress", progress);
     checkAch();
@@ -441,7 +473,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Errungenschaften ---------- */
   const ACH = DATA.app.achievements || [];
   const achById = Object.fromEntries(ACH.map(a => [a.id, a]));
-  const ACH_CATS = [["reihen", "Reihen & besondere Bände"], ["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["rhythmus", "Rhythmus"],
+  const ACH_CATS = [["geheim", "Geheim"], ["reihen", "Reihen & besondere Bände"], ["buecher", "Gelesene Bücher"], ["zeit", "Lesezeit"], ["rhythmus", "Rhythmus"],
     ["praktiken", "Praktiken"], ["sammler", "Sammler"], ["genre", "Genres"], ["meister", "Meisterschaft der Genres"]];
   const achKat = a => a.kat || a.typ;
   const DAY = 864e5;
@@ -453,7 +485,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   function readStats() {
     let books = 0, w = 0, chapters = 0, maxAgain = 0, richest = 0, oneDay = false, fresh3 = 0;
-    const genres = {}, done = new Set(), prak = {}, tags = {}, doneTimes = [];
+    const genres = {}, done = new Set(), prak = {}, tags = {}, doneTimes = [], bandDates = {};
     STORIES.forEach(st => {
       const p = progress[st.id]; if (!p || !st.chapters) return;
       if (p.done) {
@@ -464,6 +496,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         (st.praktiken || []).forEach(t => { prak[t] = (prak[t] || 0) + 1; });
         (st.tags || []).forEach(t => { tags[t] = (tags[t] || 0) + 1; });
         richest = Math.max(richest, (st.praktiken || []).length);
+        bandDates[st.nr] = new Set([p.done, p.last].filter(Boolean).map(t => dayKey(new Date(t)).slice(5)));
         if (p.start && dayKey(new Date(p.start)) === dayKey(new Date(p.done))) oneDay = true;
         if (st.seit) { const sd = new Date(st.seit + "T00:00:00").getTime(); if (p.done >= sd && p.done - sd < 3 * DAY) fresh3++; }
       } else {
@@ -479,7 +512,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     for (let i = 0, j = 0; i < doneTimes.length; i++) { while (doneTimes[i] - doneTimes[j] > 7 * DAY) j++; burst = Math.max(burst, i - j + 1); }
     // Lesetagebuch
     const days = Object.keys(log).filter(k => log[k].n > 0).sort();
-    let streak = 0, cur = 0, prev = null, gap = 0, maxDay = 0;
+    let streak = 0, cur = 0, prev = null, gap = 0, maxDay = 0, midMoon = false, fri13 = false;
     const hourDays = h => days.filter(k => log[k].h.some(h)).length, lunations = new Set();
     days.forEach(k => {
       const t = new Date(k + "T12:00:00").getTime();
@@ -487,10 +520,17 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       cur = diff === 1 ? cur + 1 : 1; streak = Math.max(streak, cur);
       if (diff != null) gap = Math.max(gap, diff - 1);
       prev = t; maxDay = Math.max(maxDay, log[k].n);
-      const mo = moon(k); if (mo.age >= 13.8 && mo.age <= 15.8) lunations.add(mo.lun);
+      const mo = moon(k); if (mo.age >= 13.8 && mo.age <= 15.8) { lunations.add(mo.lun); if (log[k].h.includes(0)) midMoon = true; }
+      const dt = new Date(k + "T12:00:00"); if (dt.getDay() === 5 && dt.getDate() === 13) fri13 = true;
+    });
+    let treue = 0, tc = 0, tp = null;          // Öffnungstage am Stück ohne gelesenes Kapitel
+    Object.keys(log).filter(k => log[k].o || log[k].n > 0).sort().forEach(k => {
+      const t = new Date(k + "T12:00:00").getTime();
+      tc = log[k].n > 0 ? 0 : (tp != null && Math.round((t - tp) / DAY) === 1 ? tc + 1 : 1);
+      tp = t; treue = Math.max(treue, tc);
     });
     return { books, hours: w / 230 / 60, genres, done, prak, tags, chapters, maxAgain, richest, oneDay, fresh3, pairs, row, burst,
-      streak, gap, maxDay, fullMoons: lunations.size, hourDays, dates: new Set(days.map(k => k.slice(5))) };
+      streak, gap, maxDay, fullMoons: lunations.size, midMoon, fri13, treue, bandDates, hourDays, dates: new Set(days.map(k => k.slice(5))) };
   }
   function achMet(a, s) {
     switch (a.typ) {
@@ -517,6 +557,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       case "nochmal": return s.maxAgain >= a.ziel;
       case "frisch": return s.fresh3 >= a.ziel;
       case "heisshunger": return s.burst >= a.ziel;
+      case "freitag13": return s.fri13;
+      case "mitternachtsmond": return s.midMoon;
+      case "treue": return s.treue >= a.ziel;
+      case "band-datum": return !!(s.bandDates[a.band] && s.bandDates[a.band].has(a.datum));
+      case "geheim-alle": return ACH.every(x => x.kat !== "geheim" || x.id === a.id || x.id in ach);
     }
     return false;
   }
@@ -573,9 +618,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
     const cat = a.typ === "genre" ? (GENRES[a.genre] || "Genre") : a.typ === "meister" ? "Meisterschaft · " + (GENRES[a.genre] || "") : (ACH_CATS.find(c => c[0] === achKat(a)) || [, ""])[1];
     sh.onclick = null;
-    sh.innerHTML = `<div class="adetail ${stufeCls(a)}">${a.img ? `<img src="${a.img}" alt="">` : ""}
-      <div class="ak" style="margin-top:14px">${esc(cat)}${a.stufe ? " · " + esc(a.stufe) : ""}</div>
-      <h2>${esc(a.titel)}</h2><p>${esc(a.text || "")}</p><small>Erhalten am ${fmtDate(ach[a.id])}</small></div>`;
+    const zu = !(a.id in ach);   // geheim und noch nicht freigeschaltet
+    sh.innerHTML = `<div class="adetail ${zu ? "locked" : stufeCls(a)}">${a.img ? `<img src="${a.img}" alt="">` : ""}
+      <div class="ak" style="margin-top:14px">${esc(cat)}${a.stufe && !zu ? " · " + esc(a.stufe) : ""}</div>
+      <h2>${zu ? "???" : esc(a.titel)}</h2><p>${esc(zu ? a.hinweis || "" : a.text || "")}</p><small>${zu ? "Noch geheim" : "Erhalten am " + fmtDate(ach[a.id])}</small></div>`;
     bg.style.display = "block";
     requestAnimationFrame(() => sh.classList.add("open"));
   }
@@ -630,7 +676,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function arrange(list) {
     const f = prefs.filter || "alle", so = prefs.sort || "nr";
     const g = prefs.genre || "alle";
-    let l = list.filter(s => (f === "alle" || s.status === f) && (g === "alle" || (s.genres || []).includes(g)));
+    const q = query.trim().toLowerCase();
+    let l = list.filter(s => (f === "alle" || s.status === f) && (g === "alle" || (s.genres || []).includes(g))
+      && (!q || [s.title, s.tagline, s.description].some(x => (x || "").toLowerCase().includes(q))));
     const byNr = (a, b) => (a.nr || 0) - (b.nr || 0);
     const byTitle = (a, b) => sortKey(a.title).localeCompare(sortKey(b.title), "de");
     if (so === "az") l.sort(byTitle);
@@ -641,9 +689,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else l.sort(byNr);
     return l;
   }
+  let query = "", qT = 0;   // Suche (nicht gespeichert)
   function tools(withFilter) {
     const opt = (o, cur) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${v}</option>`).join("");
-    return `<div class="tools"><select id="sortSel" aria-label="Sortieren">${opt(SORTS, prefs.sort || "nr")}</select>` +
+    return `<div class="tools"><input type="search" id="q" class="qsel" placeholder="Suchen …" aria-label="Suchen" value="${esc(query)}" autocomplete="off"><select id="sortSel" aria-label="Sortieren">${opt(SORTS, prefs.sort || "nr")}</select>` +
       (withFilter === false ? `<button type="button" id="moonBtn" class="moonbtn${pfActive() ? " on" : ""}" aria-label="Feinauswahl"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 2.5a9.5 9.5 0 1 0 7 15.9A8 8 0 0 1 14.5 2.5z"/></svg></button>` : "") +
       (withFilter ? `<select id="filterSel" aria-label="Filtern">${opt(FILTERS, prefs.filter || "alle")}</select>` : "") +
       (GENRE_KEYS.length ? `<select id="genreSel" aria-label="Genre" class="gsel">${opt(Object.assign({ alle: "Alle Genres" }, GENRES), prefs.genre || "alle")}</select>` : "") + `</div>`;
@@ -753,13 +802,15 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   function viewAch() {
     const s = readStats();
-    const got = ACH.filter(a => a.id in ach && a.img);
+    const got = ACH.filter(a => a.id in ach && a.img && a.kat !== "geheim");
+    const geheim = ACH.filter(a => a.kat === "geheim" && a.img);
     let h = header() + `<div class="wrap"><div class="sec"><h3>Errungenschaften</h3><span>${got.length} freigeschaltet</span></div>
       <div class="astats"><div><b>${s.books}</b><small>${s.books === 1 ? "Buch" : "Bücher"} gelesen</small></div>
       <div><b>${fmtHours(s.hours).replace(" Std.", "").replace(" Min.", "")}</b><small>${s.hours < 1 ? "Minuten" : "Stunden"} Lesezeit</small></div>
       <div><b>${Object.keys(s.genres).filter(g => GENRES[g]).length}</b><small>Genres entdeckt</small></div></div>`;
-    if (!got.length) return h + '<div class="empty">Noch keine Errungenschaften.<br>Lies weiter – die erste wartet schon auf dich.</div></div>';
+    if (!got.length) h += '<div class="empty">Noch keine Errungenschaften.<br>Lies weiter – die erste wartet schon auf dich.</div>';
     ACH_CATS.forEach(([k, label]) => {
+      if (k === "geheim") return;
       let list = got.filter(a => achKat(a) === k);
       if (!list.length) return;
       if (k === "genre" || k === "meister") list.sort((a, b) => (GENRE_KEYS.indexOf(a.genre) - GENRE_KEYS.indexOf(b.genre)) || (a.ziel || 0) - (b.ziel || 0));
@@ -769,6 +820,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
           <div class="aimg">${a.img ? `<img src="${a.img}" alt="" loading="lazy" decoding="async">` : ""}</div>
           <b>${esc(a.titel)}</b><small>${a.typ === "genre" || a.typ === "meister" ? esc(GENRES[a.genre] || "") : fmtDate(ach[a.id])}</small></button>`).join("")}</div>`;
     });
+    if (geheim.length) {
+      const offen = geheim.filter(a => a.id in ach).length;
+      h += `<div class="sec"><h3>Geheim</h3><span>${offen} von ${geheim.length}</span></div>
+        <div class="achgrid">${geheim.map(a => { const zu = !(a.id in ach); return `<button class="acard ${zu ? "locked" : stufeCls(a)}" data-a="${a.id}">
+          <div class="aimg"><img src="${a.img}" alt="" loading="lazy" decoding="async"></div>
+          <b>${zu ? "???" : esc(a.titel)}</b><small>${zu ? "geheim" : fmtDate(ach[a.id])}</small></button>`; }).join("")}</div>`;
+    }
     return h + "</div>";
   }
 
@@ -947,8 +1005,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (was !== land) requestAnimationFrame(() => { setY(ratio * getMax()); if (onScroll) onScroll(); });
   }
   let onScroll = null;
+  let lastRoute = "", taps = [], sleepT = 0;
   function route() {
     closeSheet();
+    clearInterval(sleepT);
+    const fresh = location.hash !== lastRoute;   // echter Seitenwechsel (kein Neuaufbau)
+    lastRoute = location.hash;
     if (onScroll) { window.removeEventListener("scroll", onScroll); app.removeEventListener("scroll", onScroll); onScroll = null; }
     const parts = (location.hash.replace(/^#\/?/, "") || "").split("/");
     const reading = parts[0] === "read";
@@ -978,6 +1040,17 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const ss = document.getElementById("sortSel"), fs = document.getElementById("filterSel");
     if (ss) ss.onchange = () => { prefs.sort = ss.value; save("prefs", prefs); route(); };
     if (fs) fs.onchange = () => { prefs.filter = fs.value; save("prefs", prefs); route(); };
+    const qi = document.getElementById("q");
+    if (qi) qi.oninput = () => {
+      query = qi.value; secretWord(query);
+      clearTimeout(qT);
+      qT = setTimeout(() => { const y = getY(); route(); setY(y); const n = document.getElementById("q"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 400);
+    };
+    document.querySelectorAll(".brand").forEach(b => { b.onclick = () => {
+      const now = Date.now(); taps = taps.filter(t => now - t < 3000).concat(now);
+      if (taps.length >= 7) grant("geh-klopfen");
+    }; });
+    if (parts[0] === "erfolge" && fresh && bump("achViews", dayKey(new Date()), 10)) grant("geh-neugier");
     const gs = document.getElementById("genreSel");
     if (gs) gs.onchange = () => { prefs.genre = gs.value; save("prefs", prefs); route(); };
 
@@ -992,8 +1065,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const sid = parts[1];
       on("again", () => { rereadBook(sid); location.hash = "#/read/" + sid + "/0"; });
       on("undone", () => { resetBook(sid); route(); });
-      on("reset", () => { if (confirm("Fortschritt für dieses Buch zurücksetzen?")) { resetBook(sid); route(); } });
-      on("markdone", () => { finishBook(sid); route(); });
+      on("reset", () => { if (confirm("Fortschritt für dieses Buch zurücksetzen?")) { resetBook(sid); grant("geh-neuanfang"); route(); } });
+      on("markdone", () => { const sp = progress[sid]; const ohne = !sp || !(sp.read || []).length; finishBook(sid); if (ohne) grant("geh-schummlerin"); route(); });
     }
 
     if (reading) {
@@ -1001,6 +1074,15 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const ch = Math.min(Math.max(parseInt(parts[2] || "0", 10), 0), st.chapters.length - 1);
       const prev = progress[id];
       const restore = prev && prev.ch === ch ? prev.pos || 0 : 0;
+      const openedAt = Date.now();
+      let lastMove = openedAt;
+      if (fresh) {
+        timeEvents(true);
+        if (bump("opens", id + "/" + ch, 5)) grant("geh-lieblingsstelle");
+        if (ch === st.chapters.length - 1 && ch > 0 && !(prev && (prev.done || (prev.read || []).includes(0)))) grant("geh-spoilerin");
+      }
+      const schlaf = () => { if (Date.now() - lastMove >= 3600e3 && location.hash === lastRoute) grant("geh-eingeschlafen"); };
+      sleepT = setInterval(schlaf, 60e3);
       progress[id] = Object.assign({ read: [] }, prev, prev && prev.done && !prev.re ? { t: Date.now() } : { ch, pos: restore, t: Date.now() });
       save("progress", progress);
       document.getElementById("aa").onclick = openSheet;
@@ -1015,6 +1097,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         prog.style.width = (ratio * 100) + "%";
         bar.classList.toggle("hide", y > lastY && y > 120);
         lastY = y;
+        schlaf(); lastMove = Date.now();
+        if (ratio > 0.9 && restore < 0.5 && Date.now() - openedAt < 180e3 && max > 3 * innerHeight) grant("geh-schnell");
         clearTimeout(t);
         t = setTimeout(() => {
           const p = progress[id];
@@ -1053,6 +1137,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   window.addEventListener("orientationchange", () => setTimeout(orient, 60));
   if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener("change", () => setTimeout(orient, 60));
   gate();
+  logOpen();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { logOpen(); if (document.body.classList.contains("reading")) { const r = lastRoute; setTimeout(() => { if (location.hash === r) timeEvents(false); }, 0); } } });
   checkAch();   // einmal beim Start: vergibt auch nachträglich, was schon erfüllt ist
 })();
 </script>

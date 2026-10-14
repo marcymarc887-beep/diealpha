@@ -1,6 +1,6 @@
 /* Wolfsmond – Service Worker: macht die Seite installierbar und hält Hülle, Cover und Icons vor.
    Anfragen an Supabase (Anmeldung, Texte, Fortschritt) und CDNs laufen unverändert durchs Netz. */
-const CACHE = "wolfsmond-v3";
+const CACHE = "wolfsmond-v4";
 const SHELL = ["./", "./index.html", "./lesen.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", e => {

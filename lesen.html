@@ -192,6 +192,16 @@ body.reading .tabbar { display: none; }
 .fold:not([open]) .chev { transform: rotate(-90deg); }
 .fold:not([open]) { margin-bottom: 18px; }
 .rend .fin { font-family: "Cormorant Garamond", serif; font-size: 26px; color: var(--accent); margin: 0 0 12px; }
+/* ---------- Rückmeldung am Buchende (seit 15.10.2026) ---------- */
+.fb { margin: 6px auto 22px; max-width: 420px; padding: 16px; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; text-align: center; }
+.fb .fbq { font-family: "Cormorant Garamond", serif; font-size: 20px; margin: 0 0 12px; }
+.fb .fbb { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.fb .fbb button { font: inherit; font-size: 14px; font-weight: 600; color: inherit; padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(128,128,128,.45); background: transparent; transition: all .15s; }
+.fb .fbb button.on { background: var(--accent); border-color: var(--accent); color: #1a1206; }
+.fb .fbb button#fbLike.on { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.fb textarea { display: block; width: 100%; box-sizing: border-box; margin: 14px 0 8px; min-height: 76px; padding: 10px 12px; font: inherit; font-size: 15px; color: inherit; background: rgba(128,128,128,.08); border: 1px solid rgba(128,128,128,.3); border-radius: 12px; resize: vertical; }
+.fb .fbs { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; opacity: .8; }
+.fb .fbs button { font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); padding: 6px 12px; border: 1px solid var(--accent); border-radius: 999px; background: transparent; }
 
 /* ---------- Cover-Bilder ---------- */
 .tile .cover img, .hero .bgart img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -308,12 +318,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb") pushSoon();
   }
   let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done, start, again, re, last}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
   let removed = load("removed", {});     // {id: Zeitpunkt des Zurücksetzens} – damit andere Geräte es mitbekommen
   let ach = load("ach", {});             // {achievementId: Zeitpunkt, _init: erste Prüfung, "!id": angezeigt} – einmal verdient, bleibt verdient
+  let fb = load("fb", {});               // Rückmeldung am Buchende {id: {like, fortsetzung, kommentar, geaendert_am}} – seit 15.10.2026
   let log = load("log", {});             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
 
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
@@ -322,7 +333,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   async function pushNow() {
     if (!sb) return;
     clearTimeout(pushT);
-    try { await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log }, updated_at: new Date().toISOString() }); } catch (e) {}
+    try { await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb }, updated_at: new Date().toISOString() }); } catch (e) {}
   }
   async function pull() {
     if (!sb) return false;
@@ -348,8 +359,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         if (e.o && !l.o) { l.o = 1; changed = true; }
         (e.h || []).forEach(x => { if (!l.h.includes(x)) { l.h.push(x); changed = true; } });
       });
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); } catch (e) {}
+      Object.entries(r.fb || {}).forEach(([id, f]) => { if (!fb[id] || (f.geaendert_am || 0) > (fb[id].geaendert_am || 0)) { fb[id] = f; changed = true; } });
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -886,7 +898,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <div class="wrap">
         <div class="kick">Kapitel ${ch + 1}</div><h1>${esc(c.title)}</h1>
         <div class="txt">${c.blocks.map(blockHTML).join("")}</div>
-        <div class="rend">${ch === n - 1 && st.status === "fertig" ? `<div class="fin">Ende</div>` : ""}<div class="of">Kapitel ${ch + 1} von ${n}${ch === n - 1 && st.status !== "fertig" ? " · weitere Kapitel folgen" : ""}</div>
+        <div class="rend">${ch === n - 1 && st.status === "fertig" ? `<div class="fin">Ende</div>${fbHTML(st.id)}` : ""}<div class="of">Kapitel ${ch + 1} von ${n}${ch === n - 1 && st.status !== "fertig" ? " · weitere Kapitel folgen" : ""}</div>
           <div class="rnav">
             ${ch > 0 ? `<a class="btn ghost" href="#/read/${st.id}/${ch - 1}">Zurück</a>` : ""}
             ${ch < n - 1 ? `<a class="btn" id="nextch" href="#/read/${st.id}/${ch + 1}">Nächstes Kapitel</a>`
@@ -894,6 +906,50 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
           </div></div>
       </div>
     </div>`;
+  }
+
+  /* ---------- Rückmeldung am Buchende: ♥ und Fortsetzungswunsch, optional ein Satz dazu ---------- */
+  function fbHTML(id) {
+    const f = fb[id] || {};
+    return `<div class="fb" id="fb"><div class="fbq">Wie war's?</div>
+      <div class="fbb"><button type="button" id="fbLike" class="${f.like ? "on" : ""}" aria-pressed="${!!f.like}">♥ Hat mir gefallen</button>
+        <button type="button" id="fbFort" class="${f.fortsetzung ? "on" : ""}" aria-pressed="${!!f.fortsetzung}">Ich will eine Fortsetzung!</button></div>
+      <textarea id="fbText" maxlength="2000" placeholder="Was hat dir gefallen / was wünschst du dir?">${esc(f.kommentar || "")}</textarea>
+      <div class="fbs"><span id="fbMsg">${f.geaendert_am ? "Gespeichert ✓" : ""}</span><button type="button" id="fbSave">Speichern</button></div></div>`;
+  }
+  function fbBind(id) {
+    const box = document.getElementById("fb");
+    if (!box) return;
+    const msg = document.getElementById("fbMsg"), txt = document.getElementById("fbText");
+    const store = async note => {
+      const f = fb[id] || (fb[id] = { like: false, fortsetzung: false, kommentar: "" });
+      f.geaendert_am = Date.now();
+      save("fb", fb);
+      if (!sb) { msg.textContent = note; return; }
+      msg.textContent = "Speichert …";
+      try {
+        if (!navigator.onLine) throw 0;
+        const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb }, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        msg.textContent = note;
+      } catch (e) { msg.textContent = "Offline – wird später übertragen"; }
+    };
+    const toggle = (elId, key) => {
+      const b = document.getElementById(elId);
+      b.onclick = () => {
+        const f = fb[id] || (fb[id] = { like: false, fortsetzung: false, kommentar: "" });
+        f[key] = !f[key];
+        b.classList.toggle("on", f[key]); b.setAttribute("aria-pressed", f[key]);
+        store("Gespeichert ✓");
+      };
+    };
+    toggle("fbLike", "like"); toggle("fbFort", "fortsetzung");
+    document.getElementById("fbSave").onclick = () => {
+      const f = fb[id] || (fb[id] = { like: false, fortsetzung: false, kommentar: "" });
+      f.kommentar = txt.value.trim();
+      store(f.kommentar ? "Danke! Gespeichert ✓" : "Gespeichert ✓");
+    };
+    txt.oninput = () => { msg.textContent = "Noch nicht gespeichert"; };
   }
 
   /* ---------- Feinauswahl nach Praktiken (dezent hinter der Mondsichel, wird NICHT gespeichert) ---------- */
@@ -1089,6 +1145,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       on("nextch", () => markRead(id, ch));
       on("lastch", () => markRead(id, ch));
       on("finish", () => finishBook(id, ch));
+      fbBind(id);
       const bar = document.getElementById("rbar"), prog = document.getElementById("rprog");
       let lastY = 0, t = 0;
       const self = onScroll = () => {

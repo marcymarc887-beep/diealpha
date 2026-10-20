@@ -244,25 +244,7 @@ body.reading .tabbar { display: none; }
 .fq .fqsave { font-size: 12px; color: var(--muted); }
 
 /* ---------- Reihen (seit 20.10.2026): Hauptkachel + Bände als Panorama ---------- */
-.reihe { display: block; position: relative; border-radius: 16px; overflow: hidden; margin: 4px 0 0; color: var(--text); border: 1px solid rgba(232,180,79,.35); background: var(--card); }
-.reihe .rbg { display: block; width: 100%; aspect-ratio: 3 / 1; object-fit: cover; }
-.reihe .rt { padding: 12px 16px 14px; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.25)); }
-.reihe .rt small { font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--accent); }
-.reihe .rt h2 { margin: 2px 0 4px; font-family: "Cormorant Garamond", serif; font-size: 28px; line-height: 1.05; color: var(--accent); }
-.reihe .rt p { margin: 0; font-size: 14px; color: var(--muted); }
-.reihe .rt .rmehr { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
-.rbaende { display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: 0; margin: 10px 0 26px; }
-.rbaende a { display: block; color: var(--text); min-width: 0; }
-.rbaende .rc { position: relative; aspect-ratio: 377 / 566; overflow: hidden; background: var(--card); }
-.rbaende .rc img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-.rbaende a:first-child .rc { border-radius: 12px 0 0 12px; }
-.rbaende a:last-child .rc { border-radius: 0 12px 12px 0; }
-.rbaende .rc .pbar { position: absolute; left: 6px; right: 6px; bottom: 6px; height: 3px; background: rgba(0,0,0,.45); }
-.rbaende .rl { padding: 6px 4px 0; text-align: center; }
-.rbaende .rl b { display: block; font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: .3px; }
-.rbaende .rl span { display: block; font-family: "Cormorant Garamond", serif; font-size: 15px; line-height: 1.1; margin: 1px 0 2px; overflow-wrap: anywhere; }
-.rbaende .rl small { display: block; font-size: 11px; color: var(--muted); }
-.rseite .rcov { display: block; width: min(320px, 70%); margin: 4px auto 16px; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.rseite .rpano { display: block; width: 100%; margin: 4px 0 16px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
 .rseite h2 { font-family: "Cormorant Garamond", serif; font-size: 32px; line-height: 1.05; color: var(--accent); text-align: center; margin: 0 0 6px; }
 .rseite .ru { text-align: center; color: var(--muted); margin: 0 0 16px; }
 .rseite .rb { font-size: 16px; line-height: 1.55; margin: 0 0 20px; }
@@ -920,23 +902,18 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (p) return p + " % gelesen";
     return st.status === "laufend" ? st.chapters.length + " Kapitel · weitere folgen" : st.chapters.length + " Kapitel";
   }
-  function reiheBaende(r) {
-    return `<div class="rbaende" style="--n:${r.st.length}">${r.st.map(st => {
-      const p = pct(st);
-      return `<a href="#/story/${st.id}"><div class="rc">${st.cover ? `<img src="${st.cover}" alt="" loading="lazy">` : ""}${p && p < 100 ? `<div class="pbar"><i style="width:${p}%"></i></div>` : ""}</div>
-        <div class="rl"><b>Band ${st.reihe.teil}</b><span>${esc(st.title)}</span><small>${reiheStatus(st)}</small></div></a>`;
-    }).join("")}</div>`;
-  }
-  function reiheKachel(r) {
-    const bild = r.panoramaImg || r.coverImg;
-    return `<a class="reihe" href="#/reihe/${r.id}">${bild ? `<img class="rbg" src="${bild}" alt="">` : ""}<div class="rt"><small>Reihe · ${r.st.length} Bände</small><h2>${esc(r.titel)}</h2>${r.untertitel ? `<p>${esc(r.untertitel)}</p>` : ""}<span class="rmehr">Zur Reihe ›</span></div></a>` + reiheBaende(r);
+  function reiheKachel(r) {        // klein wie eine Buchkachel, mit dem Cover von Band 1; die Bände selbst erst auf der Reihenseite
+    const bild = (r.st[0] || {}).cover || r.coverImg;
+    return `<a class="tile reihetile" href="#/reihe/${r.id}"><div class="cover ${bild ? "img" : ""}">${bild ? `<img src="${bild}" alt="" loading="lazy">` : ""}<div class="ct">${esc(r.titel)}</div><span class="lock">Reihe</span></div>
+      <div class="tm">${esc(r.titel)}</div><div class="ts">Reihe · ${r.st.length} Bände</div></a>`;
   }
   function viewReihe(id) {
     const r = REIHEN.find(x => x.id === id);
     if (!r) return header() + '<div class="wrap"><div class="empty">Diese Reihe gibt es nicht.</div></div>';
-    return header() + `<div class="wrap rseite">${r.coverImg ? `<img class="rcov" src="${r.coverImg}" alt="">` : ""}<h2>${esc(r.titel)}</h2>${r.untertitel ? `<p class="ru">${esc(r.untertitel)}</p>` : ""}
+    return header() + `<div class="wrap rseite">${r.panoramaImg || r.coverImg ? `<img class="rpano" src="${r.panoramaImg || r.coverImg}" alt="">` : ""}<h2>${esc(r.titel)}</h2>${r.untertitel ? `<p class="ru">${esc(r.untertitel)}</p>` : ""}
       ${(r.beschreibung || "").split(/\n\s*\n/).map(t => `<p class="rb">${esc(t)}</p>`).join("")}
-      <div class="sec"><h3>Die Bände</h3><span>in Lesereihenfolge</span></div>${reiheBaende(r)}</div>`;
+      <div class="sec"><h3>Die Bände</h3><span>in Lesereihenfolge</span></div>
+      ${r.st.map(st => `<a class="libitem" href="#/story/${st.id}">${tile(st, "", true)}<div class="info"><b>Band ${st.reihe.teil} · ${esc(st.title)}</b><small>${reiheStatus(st)}</small></div></a>`).join("")}</div>`;
   }
 
   function viewHome() {
@@ -944,7 +921,6 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const inProg = ready.filter(s => progress[s.id] && (!isDone(s) || isRe(s))).sort((a, b) => (progress[b.id].t || 0) - (progress[a.id].t || 0));
     const done = ready.filter(s => isDone(s) && !isRe(s)).sort((a, b) => progress[b.id].done - progress[a.id].done);
     let h = header() + '<div class="wrap">';
-    REIHEN.forEach(r => { h += reiheKachel(r); });
     if (DATA.app.introImage || DATA.app.intro) {
       h += `<div class="intro">${DATA.app.introImage ? `<a href="#/bibliothek" class="introimg"><img src="${DATA.app.introImage}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
@@ -964,9 +940,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (done.length) {
       h += `<details class="fold" id="doneFold" ${prefs.doneOpen ? "open" : ""}><summary class="sec"><h3>Gelesen <span>(${done.length})</span></h3><span class="chev">▾</span></summary><div class="row">${done.map(s => tile(s)).join("")}</div></details>`;
     }
+    if (REIHEN.length) h += `<div class="sec"><h3>Reihen</h3></div><div class="grid">${REIHEN.map(reiheKachel).join("")}</div>`;
     const einzel = STORIES.filter(s => !(s.reihe && REIHEN.some(r => r.id === s.reihe.id)));   // Reihenbände stehen oben
     const all = arrange(einzel);
-    h += `<div class="sec"><h3>${REIHEN.length ? "Einzelbände" : "Alle Geschichten"}</h3><span>${all.length} von ${einzel.length}</span></div>${tools(true)}` +
+    h += `<div class="sec"><h3>${REIHEN.length ? "Einzelne Geschichten" : "Alle Geschichten"}</h3><span>${all.length} von ${einzel.length}</span></div>${tools(true)}` +
       (all.length ? gridHtml(all) : '<div class="empty">Keine Geschichten in dieser Auswahl.</div>');
     if (ARCHIV.length) {
       const arc = ARCHIV.slice().sort((a, b) => (a.nr || 0) - (b.nr || 0));

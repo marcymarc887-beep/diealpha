@@ -268,6 +268,27 @@ body.reading .tabbar { display: none; }
 .bant dt { font-size: 13px; color: var(--muted); margin-top: 10px; }
 .bant dd { margin: 2px 0 0; font-size: 15px; white-space: pre-line; }
 
+/* ---------- Feedbackbogen am Buchende (seit 20.10.2026, Bände ab 1001 und nicht archivierte) ---------- */
+.fbb { margin: 4px auto 22px; max-width: 460px; text-align: left; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; }
+.fbb > summary { list-style: none; cursor: pointer; padding: 14px 16px; text-align: center; font-family: "Cormorant Garamond", serif; font-size: 20px; }
+.fbb > summary::-webkit-details-marker { display: none; }
+.fbb > summary small { display: block; font-family: system-ui, sans-serif; font-size: 12px; opacity: .7; }
+.fbb .fbbi { padding: 0 16px 14px; }
+.fbb .q { padding: 12px 0; border-top: 1px solid rgba(128,128,128,.25); }
+.fbb .q h5 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+.fbb .q h5 small { font-weight: 400; opacity: .7; }
+.fbb .opts { display: flex; flex-wrap: wrap; gap: 7px; }
+.fbb .opts button { font: inherit; font-size: 14px; color: inherit; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(128,128,128,.45); background: transparent; text-align: left; }
+.fbb .opts button.on { background: var(--accent); border-color: var(--accent); color: #1a1206; font-weight: 600; }
+.fbb .rgl { display: flex; align-items: center; gap: 10px; }
+.fbb .rgl input { flex: 1; height: 34px; accent-color: var(--accent); margin: 0; }
+.fbb .rgl input.unset { opacity: .35; }
+.fbb .rgl small { font-size: 11px; opacity: .7; }
+.fbb .rgl b { min-width: 2em; text-align: center; color: var(--accent); font-variant-numeric: tabular-nums; }
+.fbb textarea { display: block; width: 100%; box-sizing: border-box; min-height: 64px; padding: 10px 12px; font: inherit; font-size: 15px; color: inherit; background: rgba(128,128,128,.08); border: 1px solid rgba(128,128,128,.3); border-radius: 12px; resize: vertical; }
+.fbb .fbbs { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(128,128,128,.25); font-size: 13px; }
+.fbb .fbbs span { opacity: .8; }
+
 /* ---------- Rückmeldung am Buchende (seit 15.10.2026) ---------- */
 .fb { margin: 6px auto 22px; max-width: 420px; padding: 16px; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; text-align: center; }
 .fb .fbq { font-family: "Cormorant Garamond", serif; font-size: 20px; margin: 0 0 12px; }
@@ -400,6 +421,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const byId = Object.fromEntries(ALLE.map(s => [s.id, s]));
   /* Brief „Für meine Herrin“ (seit 20.10.2026): stories.json → app.brief = {fuer: [Konten, die statt des Fragebogens den Brief sehen], leser: [Konten, die die Antworten sehen]} */
   const BC = DATA.app.brief || {};
+  /* Feedbackbogen (seit 20.10.2026): stories.json → app.feedback = {ab: 1001, leser: [...], fragen: [...]} – für Bände ab „ab“ und alle nicht archivierten */
+  const FBC = DATA.app.feedback || null;
+  const fbbFuer = st => !!FBC && st.status === "fertig" && ((st.nr || 0) >= FBC.ab || (!isArch(st) && (st.nr || 0) < 9000));
+  const fbbLeser = !!user && !!FBC && (FBC.leser || []).includes(konto);
   const briefFuer = !!user && (BC.fuer || []).includes(konto), briefLeser = !!user && (BC.leser || []).includes(konto);
   const userName = user ? (user.user_metadata && user.user_metadata.name) || user.email.split("@")[0].replace(/^./, c => c.toUpperCase()) : "";
 
@@ -410,7 +435,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief" || k === "fbb") pushSoon();
   }
   let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done, start, again, re, last}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
@@ -419,7 +444,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let fb = load("fb", {});               // Rückmeldung am Buchende {id: {like, fortsetzung, kommentar, geaendert_am}} – seit 15.10.2026
   let log = load("log", {});
   let fragen = load("fragen", { a: {} });
-  let brief = load("brief", { a: {} });    // Antworten im Brief „Für meine Herrin“ {a: {id: {v, t}}, sent} – seit 20.10.2026  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
+  let brief = load("brief", { a: {} });
+  let fbb = load("fbb", {});               // Feedbackbogen je Buch {id: {a: {frageId: {v, t}}, sent}} – seit 20.10.2026    // Antworten im Brief „Für meine Herrin“ {a: {id: {v, t}}, sent} – seit 20.10.2026  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
 
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
   let pushT = 0;
@@ -433,15 +459,21 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return changed;
   }
   const mergeFragen = r => mergeAnt(fragen, r);
+  function mergeFbb(r) {
+    let changed = false;
+    Object.entries(r || {}).forEach(([id, x]) => { if (mergeAnt(fbb[id] || (fbb[id] = { a: {} }), x)) changed = true; });
+    return changed;
+  }
   async function pushNow() {
     if (!sb) return false;
     clearTimeout(pushT);
     try {
-      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief").eq("user_id", user.id).maybeSingle();
+      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief,fbb:data->fbb").eq("user_id", user.id).maybeSingle();
       if (rf.error) return false;                       // ohne Serverstand nicht schreiben (Antworten schützen)
       if (rf.data && mergeFragen(rf.data.fragen)) { mem.fragen = fragen; try { localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); } catch (e) {} }
       if (rf.data && mergeAnt(brief, rf.data.brief)) { mem.brief = brief; try { localStorage.setItem(PFX + "brief", JSON.stringify(brief)); } catch (e) {} }
-      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief }, updated_at: new Date().toISOString() });
+      if (rf.data && mergeFbb(rf.data.fbb)) { mem.fbb = fbb; try { localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); } catch (e) {} }
+      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief, fbb }, updated_at: new Date().toISOString() });
       return !error;
     } catch (e) { return false; }
   }
@@ -472,8 +504,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       Object.entries(r.fb || {}).forEach(([id, f]) => { if (!fb[id] || (f.geaendert_am || 0) > (fb[id].geaendert_am || 0)) { fb[id] = f; changed = true; } });
       if (mergeFragen(r.fragen)) changed = true;
       if (mergeAnt(brief, r.brief)) changed = true;
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); } catch (e) {}
+      if (mergeFbb(r.fbb)) changed = true;
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief; mem.fbb = fbb;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -849,9 +882,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
     }
     if (sb && briefFuer) {
-      h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Markus"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
+      h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Sklaven"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
     } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
+      if (fbbLeser) h += `<a class="fqcard" href="#/feedbackantworten"><span class="fqi">✎</span><span><b>Feedback zu den Büchern</b><span>Was am Buchende geantwortet wurde</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (briefLeser) h += `<a class="fqcard" href="#/briefantworten"><span class="fqi">✉︎</span><span><b>Antworten auf deinen Brief</b><span>Was deine Herrin geantwortet hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       h += `<a class="fqcard" href="#/fragen"><span class="fqi">✒︎</span><span><b>Fragebogen: Deine Wunschgeschichten</b><span>${fragen.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : n ? n + (n === 1 ? " Antwort" : " Antworten") + " gespeichert – hier weitermachen" : "Sag mir, welche Geschichten du lesen möchtest – ich schreibe sie für dich."}</span></span><span class="fqgo">${fragen.sent ? "Ändern" : n ? "Weiter" : "Los geht's"} ›</span></a>`;
     }
@@ -1233,6 +1267,73 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Rückmeldung am Buchende: ♥ und Fortsetzungswunsch, optional ein Satz dazu ---------- */
   const urteil = f => f.urteil !== undefined ? f.urteil : (f.like ? "gut" : null);   // früher nur like:true
   const FB_PH = { schlecht: "Was hat dich gestört?" }, FB_PH0 = "Was hat dir gefallen / was wünschst du dir?";
+  /* ---------- Feedbackbogen am Buchende (Auswahl + Regler 1–10 + Freitext, je Buch) ---------- */
+  let fbbT = 0;
+  const fbbV = (id, q) => ((fbb[id] || {}).a || {})[q] && fbb[id].a[q].v;
+  function fbbSet(id, q, v) { const e = fbb[id] || (fbb[id] = { a: {} }); e.a[q] = { v, t: Date.now() }; save("fbb", fbb); const m = document.getElementById("fbbMsg"); if (m) m.textContent = "Gespeichert ✓"; }
+  function fbbQ(id, f) {
+    const v = fbbV(id, f.id);
+    let h = `<h5>${esc(f.q)}${f.type === "mehrfach" ? " <small>(mehrere möglich)</small>" : ""}</h5>`;
+    if (f.type === "regler") return h + `<div class="rgl"><small>1</small><input type="range" min="1" max="10" step="1" value="${v || 5}" class="${v ? "" : "unset"}" data-fq="${f.id}" aria-label="${esc(f.q)} 1 bis 10"><small>10</small><b>${v || "–"}</b></div>`;
+    if (f.type === "text") return h + `<textarea data-ft="${f.id}" maxlength="4000" placeholder="(optional)">${esc(v || "")}</textarea>`;
+    const sel = Array.isArray(v) ? v : v ? [v] : [];
+    return h + `<div class="opts">${f.opts.map((o, i) => `<button type="button" data-fq="${f.id}" data-i="${i}" class="${sel.includes(o) ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
+  }
+  function fbbHTML(id) {
+    const st = byId[id];
+    if (!st || !fbbFuer(st)) return "";
+    const e = fbb[id] || {}, n = Object.values(e.a || {}).filter(x => x.v && (!Array.isArray(x.v) || x.v.length)).length;
+    return `<details class="fbb" id="fbb"><summary>Ausführliches Feedback<small>${e.sent ? "Abgeschickt – antippen zum Ändern" : n ? n + " von " + FBC.fragen.length + " beantwortet – weitermachen" : "2 Minuten · hilft mir, das nächste Buch besser zu machen"}</small></summary>
+      <div class="fbbi">${FBC.fragen.map(f => `<div class="q" id="fbq_${f.id}">${fbbQ(id, f)}</div>`).join("")}
+      <div class="fbbs"><span id="fbbMsg">${e.sent ? "Abgeschickt ✓" : ""}</span><button type="button" class="btn" id="fbbSend" style="padding:9px 16px">${e.sent ? "Erneut abschicken" : "Abschicken"}</button></div></div></details>`;
+  }
+  function fbbBind(id) {
+    const box = document.getElementById("fbb");
+    if (!box) return;
+    const byF = Object.fromEntries(FBC.fragen.map(f => [f.id, f]));
+    box.onclick = async e => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (document.activeElement && document.activeElement.tagName === "TEXTAREA") document.activeElement.blur();
+      if (b.id === "fbbSend") {
+        const x = fbb[id] || (fbb[id] = { a: {} }); x.sent = Date.now(); save("fbb", fbb);
+        const m = document.getElementById("fbbMsg"); m.textContent = "Wird gesendet …";
+        const ok = navigator.onLine && await pushNow();
+        m.textContent = ok ? "Danke! Abgeschickt ✓" : "Offline – wird später übertragen";
+        b.textContent = "Erneut abschicken";
+        return;
+      }
+      const f = byF[b.dataset.fq];
+      if (!f) return;
+      const o = f.opts[+b.dataset.i], v = fbbV(id, f.id);
+      if (f.type === "wahl") fbbSet(id, f.id, v === o ? "" : o);
+      else { const sel = (Array.isArray(v) ? v : []).slice(), at = sel.indexOf(o); if (at >= 0) sel.splice(at, 1); else sel.push(o); fbbSet(id, f.id, sel); }
+      document.getElementById("fbq_" + f.id).innerHTML = fbbQ(id, f);
+    };
+    box.onchange = e => { const r = e.target; if (r.type === "range") { fbbSet(id, r.dataset.fq, +r.value); r.classList.remove("unset"); } };
+    box.oninput = e => {
+      const t = e.target;
+      if (t.type === "range") { t.classList.remove("unset"); t.parentNode.querySelector("b").textContent = t.value; return; }
+      if (t.tagName !== "TEXTAREA") return;
+      clearTimeout(fbbT);
+      fbbT = setTimeout(() => { fbbT = 0; fbbSet(id, t.dataset.ft, t.value); }, 700);
+    };
+    box.querySelectorAll("textarea").forEach(t => { t.onblur = () => { if (fbbT) { clearTimeout(fbbT); fbbT = 0; fbbSet(id, t.dataset.ft, t.value); } }; });
+  }
+  let FBA = null;
+  function viewFeedbackAntw() {
+    let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Feedback zu den Büchern</h3></div>';
+    if (!sb || !fbbLeser) return h + '<div class="empty">Nicht verfügbar.</div></div>';
+    if (!FBA) return h + '<div class="loading">Lädt …</div></div>';
+    const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
+    h += `<p class="dedication">Stand vom ${z(FBA.stand)} – aktualisieren mit <code>wm.py feedback</code>.</p>`;
+    if (!FBA.eintraege.length) h += '<div class="empty">Noch kein Feedback.</div>';
+    FBA.eintraege.forEach(k => {
+      h += `<div class="bant"><h4>${esc(k.band)}</h4><div class="meta">${esc(k.name)} · ${k.sent ? "abgeschickt am " + z(k.sent) : "noch nicht abgeschickt"} · zuletzt geändert ${z(k.t)}</div><dl>${k.antworten.map(x => `<dt>${esc(x.q)}</dt><dd>${esc(x.v)}</dd>`).join("")}</dl></div>`;
+    });
+    return h + "</div>";
+  }
+
   function fbHTML(id) {
     const f = fb[id] || {}, u = urteil(f);
     return `<div class="fb" id="fb"><div class="fbq">Wie war's?</div>
@@ -1240,7 +1341,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         <button type="button" id="fbSchlecht" class="${u === "schlecht" ? "on" : ""}" aria-pressed="${u === "schlecht"}">Hat mir nicht gefallen</button>
         <button type="button" id="fbFort" class="${f.fortsetzung ? "on" : ""}" aria-pressed="${!!f.fortsetzung}">Ich will eine Fortsetzung!</button></div>
       <textarea id="fbText" maxlength="2000" placeholder="${FB_PH[u] || FB_PH0}">${esc(f.kommentar || "")}</textarea>
-      <div class="fbs"><span id="fbMsg">${f.geaendert_am ? "Gespeichert ✓" : ""}</span><button type="button" id="fbSave">Speichern</button></div></div>`;
+      <div class="fbs"><span id="fbMsg">${f.geaendert_am ? "Gespeichert ✓" : ""}</span><button type="button" id="fbSave">Speichern</button></div></div>${fbbHTML(id)}`;
   }
   function fbBind(id) {
     const box = document.getElementById("fb");
@@ -1414,6 +1515,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "fragen") html = viewFragen();
     else if (parts[0] === "brief") html = viewBrief();
     else if (parts[0] === "briefantworten") html = viewBriefAntw();
+    else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
     else if (reading) {
       const st = byId[parts[1]];
       if (st && st.file && st.chapters && !st.chapters.every(c => c.blocks)) {
@@ -1455,6 +1557,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const on = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
     if (parts[0] === "fragen") bindFragen();
     if (parts[0] === "brief") bindBrief();
+    if (parts[0] === "feedbackantworten" && !FBA && sb && fbbLeser) loadBrief("feedback_antworten.json", d => { FBA = d; });
     if (parts[0] === "briefantworten" && !BRA && sb && briefLeser) loadBrief("brief_antworten.json", d => { BRA = d; });
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });
     if (parts[0] === "story") {
@@ -1486,6 +1589,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       on("lastch", () => markRead(id, ch));
       on("finish", () => finishBook(id, ch));
       fbBind(id);
+      fbbBind(id);
       const bar = document.getElementById("rbar"), prog = document.getElementById("rprog");
       let lastY = 0, t = 0;
       const self = onScroll = () => {

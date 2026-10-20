@@ -244,6 +244,25 @@ body.reading .tabbar { display: none; }
 .fq .fqsave { font-size: 12px; color: var(--muted); }
 
 /* ---------- Reihen (seit 20.10.2026): Hauptkachel + Bände als Panorama ---------- */
+.rseite .rcov { display: block; width: min(300px, 66%); margin: 4px auto 16px; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.karte { margin: 6px 0 24px; }
+.karte .khint { font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 17px; line-height: 1.4; color: var(--muted); text-align: center; margin: 0 0 12px; }
+.karte .kbox { position: relative; border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.6); background: #1a1712; }
+.karte .kbox img { display: block; width: 100%; height: auto; }
+.karte .kbox .knebel { filter: grayscale(.85) sepia(.35) brightness(.55) blur(1.2px); opacity: .55; }
+.karte .kbox .kklar { position: absolute; inset: 0; width: 100%; height: 100%; }
+.karte .kort { position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.karte .kort::after { content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 0 10px rgba(232,180,79,.8); }
+.karte .kort.reich::after { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #f6e7c1; }
+.karte .kort.on::after { background: var(--accent2); }
+.karte .kort.neu::before { content: ""; position: absolute; inset: -10px; border-radius: 50%; border: 2px solid var(--accent); animation: kpuls 1.6s ease-out 4; opacity: 0; }
+@keyframes kpuls { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+.karte .kinfo { margin-top: 10px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); min-height: 1em; }
+.karte .kinfo h4 { margin: 0 0 2px; font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--accent); }
+.karte .kinfo .kr { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.karte .kinfo p { margin: 0 0 6px; font-size: 15px; line-height: 1.45; }
+.karte .kinfo small { color: var(--muted); }
+.karte .kzahl { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; }
 .rseite .rpano { display: block; width: 100%; margin: 4px 0 16px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
 .rseite h2 { font-family: "Cormorant Garamond", serif; font-size: 32px; line-height: 1.05; color: var(--accent); text-align: center; margin: 0 0 6px; }
 .rseite .ru { text-align: center; color: var(--muted); margin: 0 0 16px; }
@@ -907,11 +926,51 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return `<a class="tile reihetile" href="#/reihe/${r.id}"><div class="cover ${bild ? "img" : ""}">${bild ? `<img src="${bild}" alt="" loading="lazy">` : ""}<div class="ct">${esc(r.titel)}</div><span class="lock">Reihe</span></div>
       <div class="tm">${esc(r.titel)}</div><div class="ts">Reihe · ${r.st.length} Bände</div></a>`;
   }
+  /* ---------- Karte einer Reihe: Orte erscheinen, sobald das Kapitel erreicht ist; der Rest liegt im Nebel ---------- */
+  const KARTE_TEXT = "Diese Karte ist noch nicht fertig. Sie zeichnet sich mit jedem Kapitel weiter, das du liest – was du nicht bereist hast, liegt noch im Nebel.";
+  function ortErreicht(o) {
+    const e = o.erstesKapitel || {}, st = DATA.stories.find(s => s.nr === e.band);
+    const p = st && progress[st.id];
+    if (!p) return false;
+    if (p.done) return true;
+    const weit = Math.max(p.ch || 0, ...(p.read || []));
+    return weit + 1 >= (e.kapitel || 1);
+  }
+  function karteHTML(r) {
+    if (!r.karteImg) return "";
+    const orte = (r.karteOrte || []).filter(ortErreicht);
+    const gesehen = load("karte." + r.id, []);
+    const loch = orte.map(o => `radial-gradient(circle at ${o.x}% ${o.y}%, #000 0, #000 ${o.typ === "reich" ? 13 : 7}%, transparent ${o.typ === "reich" ? 20 : 12}%)`).join(",");
+    const neu = orte.filter(o => !gesehen.includes(o.id)).map(o => o.id);
+    if (neu.length) save("karte." + r.id, gesehen.concat(neu));
+    return `<div class="karte" data-r="${r.id}"><p class="khint">${KARTE_TEXT}</p>
+      <div class="kbox"><img class="knebel" src="${r.karteImg}" alt="Karte">
+        ${orte.length ? `<img class="kklar" src="${r.karteImg}" alt="" style="-webkit-mask-image:${loch};mask-image:${loch}">` : ""}
+        ${orte.map(o => `<button type="button" class="kort ${o.typ === "reich" ? "reich" : ""} ${neu.includes(o.id) ? "neu" : ""}" style="left:${o.x}%;top:${o.y}%" data-o="${esc(o.id)}" aria-label="${esc(o.name)}"></button>`).join("")}
+      </div>
+      <div class="kinfo" id="kinfo">${orte.length ? "<small>Tippe auf einen Ort.</small>" : "<small>Noch ist alles Nebel. Lies das erste Kapitel, und die Karte beginnt sich zu zeichnen.</small>"}</div>
+      <div class="kzahl">${orte.length} von ${(r.karteOrte || []).length} Orten entdeckt</div></div>`;
+  }
+  function karteBind() {
+    const k = document.querySelector(".karte");
+    if (!k) return;
+    const r = REIHEN.find(x => x.id === k.dataset.r);
+    k.onclick = e => {
+      const b = e.target.closest(".kort");
+      if (!b) return;
+      const o = r.karteOrte.find(x => x.id === b.dataset.o), st = DATA.stories.find(s => s.nr === (o.erstesKapitel || {}).band);
+      k.querySelectorAll(".kort.on").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      document.getElementById("kinfo").innerHTML = `<h4>${esc(o.name)}</h4>${o.reich && o.reich !== o.name ? `<div class="kr">${esc(o.reich)}</div>` : '<div class="kr">Reich</div>'}
+        <p>${esc(o.beschreibung || "")}</p><small>kommt vor in ${st && st.reihe ? "Band " + st.reihe.teil + " · " + esc(st.title) : "Band " + o.erstesKapitel.band}${o.erstesKapitel.kapitel ? ", Kapitel " + o.erstesKapitel.kapitel : ""}</small>`;
+    };
+  }
   function viewReihe(id) {
     const r = REIHEN.find(x => x.id === id);
     if (!r) return header() + '<div class="wrap"><div class="empty">Diese Reihe gibt es nicht.</div></div>';
-    return header() + `<div class="wrap rseite">${r.panoramaImg || r.coverImg ? `<img class="rpano" src="${r.panoramaImg || r.coverImg}" alt="">` : ""}<h2>${esc(r.titel)}</h2>${r.untertitel ? `<p class="ru">${esc(r.untertitel)}</p>` : ""}
+    return header() + `<div class="wrap rseite">${r.panoramaImg ? `<img class="rpano" src="${r.panoramaImg}" alt="">` : r.coverImg ? `<img class="rcov" src="${r.coverImg}" alt="">` : ""}<h2>${esc(r.titel)}</h2>${r.untertitel ? `<p class="ru">${esc(r.untertitel)}</p>` : ""}
       ${(r.beschreibung || "").split(/\n\s*\n/).map(t => `<p class="rb">${esc(t)}</p>`).join("")}
+      ${karteHTML(r)}
       <div class="sec"><h3>Die Bände</h3><span>in Lesereihenfolge</span></div>
       ${r.st.map(st => `<a class="libitem" href="#/story/${st.id}">${tile(st, "", true)}<div class="info"><b>Band ${st.reihe.teil} · ${esc(st.title)}</b><small>${reiheStatus(st)}</small></div></a>`).join("")}</div>`;
   }
@@ -1632,6 +1691,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (af) af.ontoggle = () => { prefs.arcOpen = af.open; save("prefs", prefs); };
     const on = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
     if (parts[0] === "fragen") bindFragen();
+    if (parts[0] === "reihe") karteBind();
     if (parts[0] === "brief") bindBrief();
     if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
     if (parts[0] === "feedbackantworten" && !FBA && sb && fbbLeser) loadBrief("feedback_antworten.json", d => { FBA = d; });

@@ -243,6 +243,30 @@ body.reading .tabbar { display: none; }
 .fq .fqdank { font-family: "Cormorant Garamond", serif; font-size: 24px; color: var(--accent); margin: 14px 0 4px; }
 .fq .fqsave { font-size: 12px; color: var(--muted); }
 
+/* ---------- Reihen (seit 20.10.2026): Hauptkachel + Bände als Panorama ---------- */
+.reihe { display: block; position: relative; border-radius: 16px; overflow: hidden; margin: 4px 0 0; color: var(--text); border: 1px solid rgba(232,180,79,.35); background: var(--card); }
+.reihe .rbg { display: block; width: 100%; aspect-ratio: 3 / 1; object-fit: cover; }
+.reihe .rt { padding: 12px 16px 14px; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.25)); }
+.reihe .rt small { font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--accent); }
+.reihe .rt h2 { margin: 2px 0 4px; font-family: "Cormorant Garamond", serif; font-size: 28px; line-height: 1.05; color: var(--accent); }
+.reihe .rt p { margin: 0; font-size: 14px; color: var(--muted); }
+.reihe .rt .rmehr { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
+.rbaende { display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: 0; margin: 10px 0 26px; }
+.rbaende a { display: block; color: var(--text); min-width: 0; }
+.rbaende .rc { position: relative; aspect-ratio: 377 / 566; overflow: hidden; background: var(--card); }
+.rbaende .rc img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.rbaende a:first-child .rc { border-radius: 12px 0 0 12px; }
+.rbaende a:last-child .rc { border-radius: 0 12px 12px 0; }
+.rbaende .rc .pbar { position: absolute; left: 6px; right: 6px; bottom: 6px; height: 3px; background: rgba(0,0,0,.45); }
+.rbaende .rl { padding: 6px 4px 0; text-align: center; }
+.rbaende .rl b { display: block; font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: .3px; }
+.rbaende .rl span { display: block; font-family: "Cormorant Garamond", serif; font-size: 15px; line-height: 1.1; margin: 1px 0 2px; overflow-wrap: anywhere; }
+.rbaende .rl small { display: block; font-size: 11px; color: var(--muted); }
+.rseite .rcov { display: block; width: min(320px, 70%); margin: 4px auto 16px; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.rseite h2 { font-family: "Cormorant Garamond", serif; font-size: 32px; line-height: 1.05; color: var(--accent); text-align: center; margin: 0 0 6px; }
+.rseite .ru { text-align: center; color: var(--muted); margin: 0 0 16px; }
+.rseite .rb { font-size: 16px; line-height: 1.55; margin: 0 0 20px; }
+
 /* ---------- Brief „Für meine Herrin“ (seit 20.10.2026) ---------- */
 .brief .paper { background: linear-gradient(180deg, #f4ead6, #ecdfc4); color: #2a1f14; border-radius: 6px; padding: 26px 20px 30px; margin: 8px 0 24px; box-shadow: 0 10px 40px rgba(0,0,0,.5); font-family: "Cormorant Garamond", serif; font-size: 20px; line-height: 1.5; }
 .brief .paper h2 { font-size: 30px; text-align: center; margin: 0 0 18px; color: #7a1f2e; font-weight: 600; }
@@ -267,6 +291,19 @@ body.reading .tabbar { display: none; }
 .bant dl { margin: 0; }
 .bant dt { font-size: 13px; color: var(--muted); margin-top: 10px; }
 .bant dd { margin: 2px 0 0; font-size: 15px; white-space: pre-line; }
+.bant details { border-top: 1px solid var(--line); }
+.bant details > summary { list-style: none; cursor: pointer; padding: 12px 0; font-weight: 600; display: flex; justify-content: space-between; }
+.bant details > summary::-webkit-details-marker { display: none; }
+.bant details > summary::after { content: "▾"; color: var(--muted); }
+.bant details:not([open]) > summary::after { content: "▸"; }
+.bant .fz { margin: 2px 0 0; font-size: 14px; line-height: 1.45; }
+.bant .fz b { display: block; color: var(--accent); font-weight: 600; font-size: 12px; margin-top: 4px; }
+.bant .fz ul { list-style: none; margin: 2px 0 6px; padding: 0; }
+.bant .fz li { display: grid; grid-template-columns: 1fr 64px 22px; gap: 8px; align-items: center; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.bant .fz li:last-child { border-bottom: 0; }
+.bant .fz li i { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--accent) var(--w, 0%), var(--line) var(--w, 0%)); }
+.bant .fz li em { font-style: normal; text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; font-size: 13px; }
+.bant .ft { margin: 4px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); font-size: 14px; font-style: italic; white-space: pre-line; background: rgba(255,255,255,.03); }
 
 /* ---------- Feedbackbogen am Buchende (seit 20.10.2026, Bände ab 1001 und nicht archivierte) ---------- */
 .fbb { margin: 4px auto 22px; max-width: 460px; text-align: left; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; }
@@ -872,11 +909,42 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return `<div class="top"><div class="wrap">${user ? `<div class="acct">${esc(userName)}<button id="logout">Abmelden</button></div>` : ""}<div class="brand">${moonIcon}${esc(DATA.app.name)}</div>${DATA.app.dedication ? `<div class="dedication">${esc(DATA.app.dedication)}</div>` : ""}</div></div>`;
   }
 
+  /* ---------- Reihen (stories.json → app.reihen; Bände tragen reihe: {id, teil}) ---------- */
+  const REIHEN = (DATA.app.reihen || []).map(r => Object.assign({}, r, {
+    st: ALLE.filter(s => s.reihe && s.reihe.id === r.id).sort((a, b) => (a.reihe.teil || 0) - (b.reihe.teil || 0))
+  })).filter(r => r.st.length);
+  function reiheStatus(st) {
+    if (st.status === "demnaechst" || !(st.chapters || []).length) return "erscheint bald";
+    if (isDone(st) && !isRe(st)) return "gelesen ✓";
+    const p = pct(st);
+    if (p) return p + " % gelesen";
+    return st.status === "laufend" ? st.chapters.length + " Kapitel · weitere folgen" : st.chapters.length + " Kapitel";
+  }
+  function reiheBaende(r) {
+    return `<div class="rbaende" style="--n:${r.st.length}">${r.st.map(st => {
+      const p = pct(st);
+      return `<a href="#/story/${st.id}"><div class="rc">${st.cover ? `<img src="${st.cover}" alt="" loading="lazy">` : ""}${p && p < 100 ? `<div class="pbar"><i style="width:${p}%"></i></div>` : ""}</div>
+        <div class="rl"><b>Band ${st.reihe.teil}</b><span>${esc(st.title)}</span><small>${reiheStatus(st)}</small></div></a>`;
+    }).join("")}</div>`;
+  }
+  function reiheKachel(r) {
+    const bild = r.panoramaImg || r.coverImg;
+    return `<a class="reihe" href="#/reihe/${r.id}">${bild ? `<img class="rbg" src="${bild}" alt="">` : ""}<div class="rt"><small>Reihe · ${r.st.length} Bände</small><h2>${esc(r.titel)}</h2>${r.untertitel ? `<p>${esc(r.untertitel)}</p>` : ""}<span class="rmehr">Zur Reihe ›</span></div></a>` + reiheBaende(r);
+  }
+  function viewReihe(id) {
+    const r = REIHEN.find(x => x.id === id);
+    if (!r) return header() + '<div class="wrap"><div class="empty">Diese Reihe gibt es nicht.</div></div>';
+    return header() + `<div class="wrap rseite">${r.coverImg ? `<img class="rcov" src="${r.coverImg}" alt="">` : ""}<h2>${esc(r.titel)}</h2>${r.untertitel ? `<p class="ru">${esc(r.untertitel)}</p>` : ""}
+      ${(r.beschreibung || "").split(/\n\s*\n/).map(t => `<p class="rb">${esc(t)}</p>`).join("")}
+      <div class="sec"><h3>Die Bände</h3><span>in Lesereihenfolge</span></div>${reiheBaende(r)}</div>`;
+  }
+
   function viewHome() {
     const ready = ALLE.filter(s => s.status !== "demnaechst");
     const inProg = ready.filter(s => progress[s.id] && (!isDone(s) || isRe(s))).sort((a, b) => (progress[b.id].t || 0) - (progress[a.id].t || 0));
     const done = ready.filter(s => isDone(s) && !isRe(s)).sort((a, b) => progress[b.id].done - progress[a.id].done);
     let h = header() + '<div class="wrap">';
+    REIHEN.forEach(r => { h += reiheKachel(r); });
     if (DATA.app.introImage || DATA.app.intro) {
       h += `<div class="intro">${DATA.app.introImage ? `<a href="#/bibliothek" class="introimg"><img src="${DATA.app.introImage}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
@@ -885,6 +953,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Sklaven"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
     } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
+      if (fgLeser) h += `<a class="fqcard" href="#/fragebogenantworten"><span class="fqi">☰</span><span><b>Antworten aus dem Fragebogen</b><span>Was deine Herrin sich wünscht</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (fbbLeser) h += `<a class="fqcard" href="#/feedbackantworten"><span class="fqi">✎</span><span><b>Feedback zu den Büchern</b><span>Was am Buchende geantwortet wurde</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (briefLeser) h += `<a class="fqcard" href="#/briefantworten"><span class="fqi">✉︎</span><span><b>Antworten auf deinen Brief</b><span>Was deine Herrin geantwortet hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       h += `<a class="fqcard" href="#/fragen"><span class="fqi">✒︎</span><span><b>Fragebogen: Deine Wunschgeschichten</b><span>${fragen.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : n ? n + (n === 1 ? " Antwort" : " Antworten") + " gespeichert – hier weitermachen" : "Sag mir, welche Geschichten du lesen möchtest – ich schreibe sie für dich."}</span></span><span class="fqgo">${fragen.sent ? "Ändern" : n ? "Weiter" : "Los geht's"} ›</span></a>`;
@@ -895,8 +964,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (done.length) {
       h += `<details class="fold" id="doneFold" ${prefs.doneOpen ? "open" : ""}><summary class="sec"><h3>Gelesen <span>(${done.length})</span></h3><span class="chev">▾</span></summary><div class="row">${done.map(s => tile(s)).join("")}</div></details>`;
     }
-    const all = arrange(STORIES);
-    h += `<div class="sec"><h3>Alle Geschichten</h3><span>${all.length} von ${STORIES.length}</span></div>${tools(true)}` +
+    const einzel = STORIES.filter(s => !(s.reihe && REIHEN.some(r => r.id === s.reihe.id)));   // Reihenbände stehen oben
+    const all = arrange(einzel);
+    h += `<div class="sec"><h3>${REIHEN.length ? "Einzelbände" : "Alle Geschichten"}</h3><span>${all.length} von ${einzel.length}</span></div>${tools(true)}` +
       (all.length ? gridHtml(all) : '<div class="empty">Keine Geschichten in dieser Auswahl.</div>');
     if (ARCHIV.length) {
       const arc = ARCHIV.slice().sort((a, b) => (a.nr || 0) - (b.nr || 0));
@@ -1320,6 +1390,33 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     };
     box.querySelectorAll("textarea").forEach(t => { t.onblur = () => { if (fbbT) { clearTimeout(fbbT); fbbT = 0; fbbSet(id, t.dataset.ft, t.value); } }; });
   }
+  /* Übersicht der Fragebogen-Antworten für Markus (Stand des letzten `wm.py fragebogen`) */
+  let FGA = null;
+  const fgLeser = !!user && (DATA.app.fragebogenLeser || []).includes(konto);
+  function viewFragenAntw() {
+    let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Antworten aus dem Fragebogen</h3></div>';
+    if (!sb || !fgLeser) return h + '<div class="empty">Nicht verfügbar.</div></div>';
+    if (!FGA) return h + '<div class="loading">Lädt …</div></div>';
+    const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
+    const zeile = x => {
+      if (x.k === "text") return `<div class="ft">${esc(x.v)}</div>`;
+      const m = x.v.match(/^([^:]{2,40}):\s(.*)$/), rest = m ? m[2] : x.v;
+      const items = rest.split(" · ").map(t => {
+        const r = t.match(/^(.*) \((\d+)\/10\)$/);
+        return r ? `<li><span>${esc(r[1])}</span><i style="--w:${r[2] * 10}%"></i><em>${r[2]}</em></li>` : `<li><span>${esc(t)}</span></li>`;
+      }).join("");
+      return `<div class="fz">${m ? `<b>${esc(m[1])}</b>` : ""}<ul>${items}</ul></div>`;
+    };
+    h += `<p class="dedication">Stand vom ${z(FGA.stand)} – aktualisieren mit <code>wm.py fragebogen</code>.</p>`;
+    const konten = FGA.konten.slice().sort((a, b) => (a.name.toLowerCase() === konto) - (b.name.toLowerCase() === konto));   // eigene Testantworten zuletzt
+    if (!konten.length) h += '<div class="empty">Noch keine Antworten.</div>';
+    konten.forEach(k => {
+      const n = k.abschnitte.reduce((s, a) => s + a.fragen.length, 0);
+      h += `<div class="bant"><h4>${esc(k.name)}</h4><div class="meta">${k.sent ? "Abgeschickt am " + z(k.sent) : "Noch nicht abgeschickt"} · ${n} Fragen beantwortet · zuletzt geändert ${z(k.t)}</div>
+        ${k.abschnitte.map(a => `<details ${k.name.toLowerCase() === konto ? "" : "open"}><summary>${esc(a.title)}</summary><dl>${a.fragen.map(f => `<dt>${esc(f.q)}</dt><dd>${f.z.map(zeile).join("")}</dd>`).join("")}</dl></details>`).join("")}</div>`;
+    });
+    return h + "</div>";
+  }
   let FBA = null;
   function viewFeedbackAntw() {
     let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Feedback zu den Büchern</h3></div>';
@@ -1500,7 +1597,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const fresh = location.hash !== lastRoute;   // echter Seitenwechsel (kein Neuaufbau)
     lastRoute = location.hash;
     if (onScroll) { window.removeEventListener("scroll", onScroll); app.removeEventListener("scroll", onScroll); onScroll = null; }
-    if (/^#\/?fragebogen/.test(location.hash) || (briefFuer && location.hash.startsWith("#/fragen"))) { location.replace(briefFuer ? "#/brief" : "#/fragen"); return; }   // Direktlink lesen.html#fragebogen (Brief-Konten: der Brief)
+    if (/^#\/?fragebogen\/?$/.test(location.hash) || (briefFuer && location.hash.startsWith("#/fragen"))) { location.replace(briefFuer ? "#/brief" : "#/fragen"); return; }   // Direktlink lesen.html#fragebogen (Brief-Konten: der Brief)
     const parts = (location.hash.replace(/^#\/?/, "") || "").split("/");
     const reading = parts[0] === "read";
     document.body.classList.toggle("reading", reading);
@@ -1513,9 +1610,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "erfolge") html = viewAch();
     else if (parts[0] === "story") html = viewStory(parts[1]);
     else if (parts[0] === "fragen") html = viewFragen();
+    else if (parts[0] === "reihe") html = viewReihe(parts[1]);
     else if (parts[0] === "brief") html = viewBrief();
     else if (parts[0] === "briefantworten") html = viewBriefAntw();
     else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
+    else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
       const st = byId[parts[1]];
       if (st && st.file && st.chapters && !st.chapters.every(c => c.blocks)) {
@@ -1557,6 +1656,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const on = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
     if (parts[0] === "fragen") bindFragen();
     if (parts[0] === "brief") bindBrief();
+    if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
     if (parts[0] === "feedbackantworten" && !FBA && sb && fbbLeser) loadBrief("feedback_antworten.json", d => { FBA = d; });
     if (parts[0] === "briefantworten" && !BRA && sb && briefLeser) loadBrief("brief_antworten.json", d => { BRA = d; });
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });

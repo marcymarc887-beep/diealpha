@@ -74,7 +74,7 @@ button:disabled { opacity: .6; }
   let sb;
   try { sb = supabase.createClient(SBC.url, SBC.key); } catch (e) { err.textContent = "Anmeldung gerade nicht erreichbar."; go.disabled = true; return; }
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { location.replace("lesen.html"); return; }
+  if (session) { location.replace("lesen.html" + location.hash); return; }
 
   document.getElementById("f").onsubmit = async e => {
     e.preventDefault();
@@ -88,7 +88,7 @@ button:disabled { opacity: .6; }
       go.disabled = false; go.textContent = "Anmelden";
       return;
     }
-    location.replace("lesen.html");
+    location.replace("lesen.html" + location.hash);
   };
 })();
 </script>

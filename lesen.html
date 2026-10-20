@@ -243,6 +243,31 @@ body.reading .tabbar { display: none; }
 .fq .fqdank { font-family: "Cormorant Garamond", serif; font-size: 24px; color: var(--accent); margin: 14px 0 4px; }
 .fq .fqsave { font-size: 12px; color: var(--muted); }
 
+/* ---------- Brief „Für meine Herrin“ (seit 20.10.2026) ---------- */
+.brief .paper { background: linear-gradient(180deg, #f4ead6, #ecdfc4); color: #2a1f14; border-radius: 6px; padding: 26px 20px 30px; margin: 8px 0 24px; box-shadow: 0 10px 40px rgba(0,0,0,.5); font-family: "Cormorant Garamond", serif; font-size: 20px; line-height: 1.5; }
+.brief .paper h2 { font-size: 30px; text-align: center; margin: 0 0 18px; color: #7a1f2e; font-weight: 600; }
+.brief .paper p { margin: 0 0 14px; white-space: pre-line; }
+.brief .bq { margin: 10px -6px 20px; padding: 14px 12px 6px; border: 1px solid rgba(122,31,46,.3); border-radius: 12px; background: rgba(255,255,255,.35); font-family: system-ui, sans-serif; font-size: 15px; }
+.brief .bq .q { border-top: 1px solid rgba(122,31,46,.18); padding: 10px 0 12px; }
+.brief .bq .q:first-child { border-top: 0; padding-top: 0; }
+.brief .bq h5 { color: #2a1f14; }
+.brief .bq h5 small, .brief .bq .rgl small { color: #6d5a45; }
+.brief .opts button { color: #2a1f14; border-color: rgba(42,31,20,.3); background: rgba(255,255,255,.5); }
+.brief .opts button.on { background: #7a1f2e; border-color: #7a1f2e; color: #fff; }
+.brief textarea { color: #2a1f14; background: rgba(255,255,255,.6); border-color: rgba(42,31,20,.3); }
+.brief .rgl b { color: #7a1f2e; }
+.brief .rgl input { accent-color: #7a1f2e; }
+.brief .bsend { text-align: center; margin-top: 10px; font-family: system-ui, sans-serif; font-size: 14px; }
+.brief .bsend .btn { background: #7a1f2e; color: #fff; }
+.brief .fqdank { color: #7a1f2e; }
+.brief .fqsave { color: #6d5a45; }
+.bant { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.bant h4 { margin: 0 0 4px; font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--accent); }
+.bant .meta { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.bant dl { margin: 0; }
+.bant dt { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.bant dd { margin: 2px 0 0; font-size: 15px; white-space: pre-line; }
+
 /* ---------- Rückmeldung am Buchende (seit 15.10.2026) ---------- */
 .fb { margin: 6px auto 22px; max-width: 420px; padding: 16px; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; text-align: center; }
 .fb .fbq { font-family: "Cormorant Garamond", serif; font-size: 20px; margin: 0 0 12px; }
@@ -373,6 +398,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const STORIES = ALLE.filter(s => !isArch(s));                          // Hauptbereich
   const ARCHIV = ALLE.filter(isArch);                                    // nur für Konten mit Archiv
   const byId = Object.fromEntries(ALLE.map(s => [s.id, s]));
+  /* Brief „Für meine Herrin“ (seit 20.10.2026): stories.json → app.brief = {fuer: [Konten, die statt des Fragebogens den Brief sehen], leser: [Konten, die die Antworten sehen]} */
+  const BC = DATA.app.brief || {};
+  const briefFuer = !!user && (BC.fuer || []).includes(konto), briefLeser = !!user && (BC.leser || []).includes(konto);
   const userName = user ? (user.user_metadata && user.user_metadata.name) || user.email.split("@")[0].replace(/^./, c => c.toUpperCase()) : "";
 
   /* ---------- Speicher (nur Bequemlichkeit, darf fehlen) ---------- */
@@ -382,7 +410,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief") pushSoon();
   }
   let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done, start, again, re, last}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
@@ -390,27 +418,30 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let ach = load("ach", {});             // {achievementId: Zeitpunkt, _init: erste Prüfung, "!id": angezeigt} – einmal verdient, bleibt verdient
   let fb = load("fb", {});               // Rückmeldung am Buchende {id: {like, fortsetzung, kommentar, geaendert_am}} – seit 15.10.2026
   let log = load("log", {});
-  let fragen = load("fragen", { a: {} });  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
+  let fragen = load("fragen", { a: {} });
+  let brief = load("brief", { a: {} });    // Antworten im Brief „Für meine Herrin“ {a: {id: {v, t}}, sent} – seit 20.10.2026  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
 
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
   let pushT = 0;
   function pushSoon() { if (!sb) return; clearTimeout(pushT); pushT = setTimeout(pushNow, 1200); }
   /* Fragebogen-Antworten: pro Frage gewinnt der neuere Zeitstempel – so überschreibt ein anderes Gerät mit altem Stand nie Antworten. */
-  function mergeFragen(r) {
+  function mergeAnt(ziel, r) {
     let changed = false;
     if (!r || !r.a) return false;
-    Object.entries(r.a).forEach(([id, x]) => { const l = fragen.a[id]; if (!l || (x.t || 0) > (l.t || 0)) { fragen.a[id] = x; changed = true; } });
-    if ((r.sent || 0) > (fragen.sent || 0)) { fragen.sent = r.sent; changed = true; }
+    Object.entries(r.a).forEach(([id, x]) => { const l = ziel.a[id]; if (!l || (x.t || 0) > (l.t || 0)) { ziel.a[id] = x; changed = true; } });
+    if ((r.sent || 0) > (ziel.sent || 0)) { ziel.sent = r.sent; changed = true; }
     return changed;
   }
+  const mergeFragen = r => mergeAnt(fragen, r);
   async function pushNow() {
     if (!sb) return false;
     clearTimeout(pushT);
     try {
-      const rf = await sb.from("progress").select("fragen:data->fragen").eq("user_id", user.id).maybeSingle();
+      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief").eq("user_id", user.id).maybeSingle();
       if (rf.error) return false;                       // ohne Serverstand nicht schreiben (Antworten schützen)
       if (rf.data && mergeFragen(rf.data.fragen)) { mem.fragen = fragen; try { localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); } catch (e) {} }
-      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen }, updated_at: new Date().toISOString() });
+      if (rf.data && mergeAnt(brief, rf.data.brief)) { mem.brief = brief; try { localStorage.setItem(PFX + "brief", JSON.stringify(brief)); } catch (e) {} }
+      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief }, updated_at: new Date().toISOString() });
       return !error;
     } catch (e) { return false; }
   }
@@ -440,8 +471,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       });
       Object.entries(r.fb || {}).forEach(([id, f]) => { if (!fb[id] || (f.geaendert_am || 0) > (fb[id].geaendert_am || 0)) { fb[id] = f; changed = true; } });
       if (mergeFragen(r.fragen)) changed = true;
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); } catch (e) {}
+      if (mergeAnt(brief, r.brief)) changed = true;
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -816,8 +848,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       h += `<div class="intro">${DATA.app.introImage ? `<a href="#/bibliothek" class="introimg"><img src="${DATA.app.introImage}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
     }
-    if (sb) {
+    if (sb && briefFuer) {
+      h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Markus"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
+    } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
+      if (briefLeser) h += `<a class="fqcard" href="#/briefantworten"><span class="fqi">✉︎</span><span><b>Antworten auf deinen Brief</b><span>Was deine Herrin geantwortet hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       h += `<a class="fqcard" href="#/fragen"><span class="fqi">✒︎</span><span><b>Fragebogen: Deine Wunschgeschichten</b><span>${fragen.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : n ? n + (n === 1 ? " Antwort" : " Antworten") + " gespeichert – hier weitermachen" : "Sag mir, welche Geschichten du lesen möchtest – ich schreibe sie für dich."}</span></span><span class="fqgo">${fragen.sent ? "Ändern" : n ? "Weiter" : "Los geht's"} ›</span></a>`;
     }
     if (inProg.length) {
@@ -1114,6 +1149,87 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     box.querySelectorAll("details").forEach(d => { d.ontoggle = () => { if (d.open) { prefs.fqOpen = +d.dataset.s; save("prefs", prefs); } }; });
   }
 
+  /* ---------- Brief „Für meine Herrin“: Inhalt privat bei Supabase (brief.json), Abfragen mitten im Brief ---------- */
+  let BR = null, BRA = null, brT = 0;
+  const brV = id => (brief.a[id] || {}).v;
+  function brSet(id, v) { brief.a[id] = { v, t: Date.now() }; save("brief", brief); const m = document.getElementById("brSave"); if (m) m.textContent = "Gespeichert ✓"; }
+  function brItems() { return BR ? BR.parts.filter(p => p.type === "q").flatMap(p => p.items) : []; }
+  function brQ(f) {
+    const v = brV(f.id);
+    if (f.type === "regler") return `<h5>${f.hint ? `<small>${esc(f.hint)}</small>` : ""}</h5><div class="rgl"><small>1</small><input type="range" min="1" max="10" step="1" value="${v || 5}" class="${v ? "" : "unset"}" data-br="${f.id}" aria-label="Regler 1 bis 10"><small>10</small><b>${v || "–"}</b></div>`;
+    let h = `<h5>${esc(f.q)}${f.type === "mehrfach" ? " <small>(mehrere möglich)</small>" : ""}</h5>`;
+    if (f.type === "text") return h + `<textarea data-bt="${f.id}" maxlength="8000" placeholder="(optional)">${esc(v || "")}</textarea>`;
+    const sel = Array.isArray(v) ? v : v ? [v] : [];
+    return h + `<div class="opts">${f.opts.map((o, i) => `<button type="button" data-bq="${f.id}" data-i="${i}" class="${sel.includes(o) ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
+  }
+  function brEnd() {
+    return brief.sent ? `<div class="fqdank">Danke, Herrin.</div><p>Abgeschickt am ${new Date(brief.sent).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}. Du kannst alles jederzeit ändern – es speichert sich von selbst.</p><button type="button" class="btn" id="brSend">Erneut abschicken</button>`
+      : `<button type="button" class="btn" id="brSend">Abschicken</button>`;
+  }
+  function viewBrief() {
+    let h = header() + '<div class="wrap fq brief" id="br">';
+    if (!sb) return h + '<div class="empty">Nur in der angemeldeten App.</div></div>';
+    if (!BR) return h + '<div class="loading">Brief wird geöffnet …</div></div>';
+    h += `<div class="paper"><h2>${esc(BR.title)}</h2>${BR.parts.map(p => p.type === "p" ? `<p>${esc(p.text)}</p>`
+      : `<div class="bq">${p.items.map(f => `<div class="q" id="bq_${f.id}">${brQ(f)}</div>`).join("")}</div>`).join("")}
+      <div class="bsend" id="brEnd">${brEnd()}</div><div class="bsend fqsave" id="brSave"></div></div></div>`;
+    return h;
+  }
+  async function loadBrief(name, set) {
+    try {
+      const r = await sb.storage.from(SBC.bucket).download(name);
+      if (r.error) throw r.error;
+      set(JSON.parse(await r.data.text()));
+    } catch (e) { const el = document.getElementById("br"); if (el) el.innerHTML = '<div class="loading"><div>Der Brief konnte nicht geladen werden.<br><br><a class="btn" href="#/">Zurück</a></div></div>'; return; }
+    route();
+  }
+  function bindBrief() {
+    const box = document.getElementById("br");
+    if (!box || !sb) return;
+    if (!BR) { loadBrief("brief.json", d => { BR = d; }); return; }
+    const byF = Object.fromEntries(brItems().map(f => [f.id, f]));
+    box.onclick = async e => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (document.activeElement && document.activeElement.tagName === "TEXTAREA") document.activeElement.blur();
+      if (b.id === "brSend") {
+        brief.sent = Date.now(); save("brief", brief);
+        const m = document.getElementById("brSave"); m.textContent = "Wird gesendet …";
+        const ok = navigator.onLine && await pushNow();
+        m.textContent = ok ? "Gesendet ✓" : "Offline – wird später übertragen";
+        document.getElementById("brEnd").innerHTML = brEnd();
+        return;
+      }
+      const f = byF[b.dataset.bq];
+      if (!f) return;
+      const o = f.opts[+b.dataset.i], v = brV(f.id);
+      if (f.type === "einfach") brSet(f.id, v === o ? "" : o);
+      else { const sel = (Array.isArray(v) ? v : []).slice(), at = sel.indexOf(o); if (at >= 0) sel.splice(at, 1); else sel.push(o); brSet(f.id, sel); }
+      document.getElementById("bq_" + f.id).innerHTML = brQ(f);
+    };
+    box.onchange = e => { const r = e.target; if (r.type === "range") { brSet(r.dataset.br, +r.value); r.classList.remove("unset"); } };
+    box.oninput = e => {
+      const t = e.target;
+      if (t.type === "range") { t.classList.remove("unset"); t.parentNode.querySelector("b").textContent = t.value; return; }
+      if (t.tagName !== "TEXTAREA") return;
+      clearTimeout(brT);
+      brT = setTimeout(() => { brT = 0; brSet(t.dataset.bt, t.value); }, 700);
+    };
+    box.querySelectorAll("textarea").forEach(t => { t.onblur = () => { if (brT) { clearTimeout(brT); brT = 0; brSet(t.dataset.bt, t.value); } }; });
+  }
+  function viewBriefAntw() {
+    let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Antworten auf deinen Brief</h3></div>';
+    if (!sb || !briefLeser) return h + '<div class="empty">Nicht verfügbar.</div></div>';
+    if (!BRA) return h + '<div class="loading">Lädt …</div></div>';
+    const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
+    h += `<p class="dedication">Stand vom ${z(BRA.stand)} – aktualisieren mit <code>wm.py brief</code>.</p>`;
+    if (!BRA.konten.length) h += '<div class="empty">Noch keine Antworten.</div>';
+    BRA.konten.forEach(k => {
+      h += `<div class="bant"><h4>${esc(k.name)}</h4><div class="meta">${k.sent ? "Abgeschickt am " + z(k.sent) : "Noch nicht abgeschickt"} · zuletzt geändert ${z(k.t)}</div><dl>${k.antworten.map(x => `<dt>${esc(x.q)}</dt><dd>${esc(x.v)}</dd>`).join("")}</dl></div>`;
+    });
+    return h + "</div>";
+  }
+
   /* ---------- Rückmeldung am Buchende: ♥ und Fortsetzungswunsch, optional ein Satz dazu ---------- */
   const urteil = f => f.urteil !== undefined ? f.urteil : (f.like ? "gut" : null);   // früher nur like:true
   const FB_PH = { schlecht: "Was hat dich gestört?" }, FB_PH0 = "Was hat dir gefallen / was wünschst du dir?";
@@ -1283,7 +1399,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const fresh = location.hash !== lastRoute;   // echter Seitenwechsel (kein Neuaufbau)
     lastRoute = location.hash;
     if (onScroll) { window.removeEventListener("scroll", onScroll); app.removeEventListener("scroll", onScroll); onScroll = null; }
-    if (/^#\/?fragebogen/.test(location.hash)) { location.replace("#/fragen"); return; }   // Direktlink lesen.html#fragebogen
+    if (/^#\/?fragebogen/.test(location.hash) || (briefFuer && location.hash.startsWith("#/fragen"))) { location.replace(briefFuer ? "#/brief" : "#/fragen"); return; }   // Direktlink lesen.html#fragebogen (Brief-Konten: der Brief)
     const parts = (location.hash.replace(/^#\/?/, "") || "").split("/");
     const reading = parts[0] === "read";
     document.body.classList.toggle("reading", reading);
@@ -1296,6 +1412,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "erfolge") html = viewAch();
     else if (parts[0] === "story") html = viewStory(parts[1]);
     else if (parts[0] === "fragen") html = viewFragen();
+    else if (parts[0] === "brief") html = viewBrief();
+    else if (parts[0] === "briefantworten") html = viewBriefAntw();
     else if (reading) {
       const st = byId[parts[1]];
       if (st && st.file && st.chapters && !st.chapters.every(c => c.blocks)) {
@@ -1336,6 +1454,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (af) af.ontoggle = () => { prefs.arcOpen = af.open; save("prefs", prefs); };
     const on = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
     if (parts[0] === "fragen") bindFragen();
+    if (parts[0] === "brief") bindBrief();
+    if (parts[0] === "briefantworten" && !BRA && sb && briefLeser) loadBrief("brief_antworten.json", d => { BRA = d; });
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });
     if (parts[0] === "story") {
       const sid = parts[1];

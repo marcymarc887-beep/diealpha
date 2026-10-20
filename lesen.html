@@ -902,8 +902,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (p) return p + " % gelesen";
     return st.status === "laufend" ? st.chapters.length + " Kapitel · weitere folgen" : st.chapters.length + " Kapitel";
   }
-  function reiheKachel(r) {        // klein wie eine Buchkachel, mit dem Cover von Band 1; die Bände selbst erst auf der Reihenseite
-    const bild = (r.st[0] || {}).cover || r.coverImg;
+  function reiheKachel(r) {        // klein wie eine Buchkachel, mit dem Reihencover; die Bände selbst erst auf der Reihenseite
+    const bild = r.coverImg || (r.st[0] || {}).cover;
     return `<a class="tile reihetile" href="#/reihe/${r.id}"><div class="cover ${bild ? "img" : ""}">${bild ? `<img src="${bild}" alt="" loading="lazy">` : ""}<div class="ct">${esc(r.titel)}</div><span class="lock">Reihe</span></div>
       <div class="tm">${esc(r.titel)}</div><div class="ts">Reihe · ${r.st.length} Bände</div></a>`;
   }

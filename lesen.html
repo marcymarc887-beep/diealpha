@@ -262,6 +262,13 @@ body.reading .tabbar { display: none; }
 .karte .kinfo .kr { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 .karte .kinfo p { margin: 0 0 6px; font-size: 15px; line-height: 1.45; }
 .karte .kinfo small { color: var(--muted); }
+.karte .klupe { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--accent); background: rgba(12,11,16,.75); color: var(--accent); font-size: 20px; line-height: 1; padding: 0; box-shadow: 0 0 12px rgba(232,180,79,.6); cursor: pointer; }
+.karte .kback { font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 999px; padding: 6px 12px; margin-bottom: 8px; }
+.karte .ktitel { font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--accent); margin: 0 0 8px; }
+.bkarte { margin: 0 0 1.6em; }
+.bkarte img { display: block; width: 100%; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.bkarte figcaption { font-size: .78em; color: var(--rmut); text-align: center; margin-top: .5em; font-style: italic; }
+.bkarte figcaption a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .karte .kzahl { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; }
 .rseite .rpano { display: block; width: 100%; margin: 4px 0 16px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
 .rseite h2 { font-family: "Cormorant Garamond", serif; font-size: 32px; line-height: 1.05; color: var(--accent); text-align: center; margin: 0 0 6px; }
@@ -936,26 +943,45 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const weit = Math.max(p.ch || 0, ...(p.read || []));
     return weit + 1 >= (e.kapitel || 1);
   }
+  const karteName = (r, m) => { const g = (r.regionen || []).find(x => x.id === m); return g ? g.name || g.id : "Der Kontinent"; };
+  function karteInner(r, m) {          // m = r.karte (Kontinent) oder die id einer Regionalkarte
+    const reg = (r.regionen || []).find(x => x.id === m), bild = reg ? reg.img : r.karteImg;
+    const alle = (r.karteOrte || []).filter(o => (o.karte || r.karte) === m), orte = alle.filter(ortErreicht);
+    const key = "karte." + r.id + "." + m, gesehen = load(key, []);
+    const neu = orte.filter(o => !gesehen.includes(o.id)).map(o => o.id);
+    if (neu.length) save(key, gesehen.concat(neu));
+    const loch = orte.map(o => `radial-gradient(circle at ${o.x}% ${o.y}%, #000 0, #000 ${o.typ === "reich" ? 13 : 7}%, transparent ${o.typ === "reich" ? 20 : 12}%)`).join(",");
+    const lupen = reg ? [] : (r.regionen || []).filter(g => g.img);
+    return `${reg ? `<button type="button" class="kback" data-m="${r.karte}">‹ ${esc(karteName(r, r.karte))}</button><div class="ktitel">${esc(karteName(r, m))}</div>` : ""}
+      <div class="kbox"><img class="knebel" src="${bild}" alt="Karte">
+        ${orte.length ? `<img class="kklar" src="${bild}" alt="" style="-webkit-mask-image:${loch};mask-image:${loch}">` : ""}
+        ${orte.map(o => `<button type="button" class="kort ${o.typ === "reich" ? "reich" : ""} ${neu.includes(o.id) ? "neu" : ""}" style="left:${o.x}%;top:${o.y}%" data-o="${esc(o.id)}" aria-label="${esc(o.name)}"></button>`).join("")}
+        ${lupen.map(g => `<button type="button" class="klupe" style="left:${g.x}%;top:${g.y}%" data-m="${esc(g.id)}" aria-label="Karte ${esc(karteName(r, g.id))} öffnen">⌕</button>`).join("")}
+      </div>
+      <div class="kinfo" id="kinfo">${orte.length ? `<small>Tippe auf einen Ort${lupen.length ? " – oder auf eine Lupe, um näher heranzugehen" : ""}.</small>` : "<small>Noch ist alles Nebel. Lies weiter, und die Karte beginnt sich zu zeichnen.</small>"}</div>
+      <div class="kzahl">${orte.length} von ${alle.length} Orten entdeckt</div>`;
+  }
   function karteHTML(r) {
     if (!r.karteImg) return "";
-    const orte = (r.karteOrte || []).filter(ortErreicht);
-    const gesehen = load("karte." + r.id, []);
-    const loch = orte.map(o => `radial-gradient(circle at ${o.x}% ${o.y}%, #000 0, #000 ${o.typ === "reich" ? 13 : 7}%, transparent ${o.typ === "reich" ? 20 : 12}%)`).join(",");
-    const neu = orte.filter(o => !gesehen.includes(o.id)).map(o => o.id);
-    if (neu.length) save("karte." + r.id, gesehen.concat(neu));
-    return `<div class="karte" data-r="${r.id}"><p class="khint">${KARTE_TEXT}</p>
-      <div class="kbox"><img class="knebel" src="${r.karteImg}" alt="Karte">
-        ${orte.length ? `<img class="kklar" src="${r.karteImg}" alt="" style="-webkit-mask-image:${loch};mask-image:${loch}">` : ""}
-        ${orte.map(o => `<button type="button" class="kort ${o.typ === "reich" ? "reich" : ""} ${neu.includes(o.id) ? "neu" : ""}" style="left:${o.x}%;top:${o.y}%" data-o="${esc(o.id)}" aria-label="${esc(o.name)}"></button>`).join("")}
-      </div>
-      <div class="kinfo" id="kinfo">${orte.length ? "<small>Tippe auf einen Ort.</small>" : "<small>Noch ist alles Nebel. Lies das erste Kapitel, und die Karte beginnt sich zu zeichnen.</small>"}</div>
-      <div class="kzahl">${orte.length} von ${(r.karteOrte || []).length} Orten entdeckt</div></div>`;
+    return `<div class="karte" data-r="${r.id}"><p class="khint">${KARTE_TEXT}</p><div class="kin">${karteInner(r, r.karte)}</div></div>`;
+  }
+  /* Karten am Anfang eines Bandes: Kontinent im ersten Band der Reihe, Regionalkarte im Band, der in das Reich führt (klar, ohne Nebel) */
+  function buchKarten(st, ch) {
+    if (ch !== 0 || !st.reihe) return "";
+    const r = REIHEN.find(x => x.id === st.reihe.id);
+    if (!r || !r.karteImg) return "";
+    const bilder = [];
+    if (st.reihe.teil === 1) bilder.push([r.karteImg, karteName(r, r.karte)]);
+    (r.regionen || []).filter(g => g.img && g.band === st.nr).forEach(g => bilder.push([g.img, karteName(r, g.id)]));
+    return bilder.map(([src, name]) => `<figure class="bkarte"><img src="${src}" alt="Karte: ${esc(name)}"><figcaption>${esc(name)} · <a href="#/reihe/${r.id}">zur Karte, die mit dir wächst</a></figcaption></figure>`).join("");
   }
   function karteBind() {
     const k = document.querySelector(".karte");
     if (!k) return;
     const r = REIHEN.find(x => x.id === k.dataset.r);
     k.onclick = e => {
+      const z = e.target.closest(".klupe, .kback");
+      if (z) { k.querySelector(".kin").innerHTML = karteInner(r, z.dataset.m); return; }
       const b = e.target.closest(".kort");
       if (!b) return;
       const o = r.karteOrte.find(x => x.id === b.dataset.o), st = DATA.stories.find(s => s.nr === (o.erstesKapitel || {}).band);
@@ -1159,7 +1185,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     </div>
     <div class="reader" id="reader" data-theme="${prefs.theme}" data-font="${prefs.font}" style="--fs:${prefs.fs}px">
       <div class="wrap">
-        <div class="kick">Kapitel ${ch + 1}</div><h1>${esc(c.title)}</h1>
+        <div class="kick">Kapitel ${ch + 1}</div><h1>${esc(c.title)}</h1>${buchKarten(st, ch)}
         <div class="txt">${c.blocks.map(blockHTML).join("")}</div>
         <div class="rend">${ch === n - 1 && st.status === "fertig" ? `<div class="fin">Ende</div>${fbHTML(st.id)}` : ""}<div class="of">Kapitel ${ch + 1} von ${n}${ch === n - 1 && st.status !== "fertig" ? " · weitere Kapitel folgen" : ""}</div>
           <div class="rnav">

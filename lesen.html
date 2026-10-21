@@ -344,6 +344,34 @@ body.reading .tabbar { display: none; }
 .kfb .kohne { font: inherit; font-size: 12px; color: inherit; margin-top: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(128,128,128,.45); background: transparent; }
 .kfb .kohne.on { background: rgba(128,128,128,.35); }
 
+/* ---------- Adventskalender (seit 21.10.2026) ---------- */
+.adv { position: relative; }
+.adv .advbg { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-size: cover; background-position: center top; opacity: .3; filter: saturate(1.1); }
+.adv > *:not(.advbg) { position: relative; z-index: 1; }
+.adv h2 { font-family: "Cormorant Garamond", serif; font-size: 34px; color: var(--accent); text-align: center; margin: 6px 0 2px; }
+.adv .advsub { text-align: center; color: var(--muted); font-style: italic; margin: 0 0 16px; }
+.adv .advtest { background: rgba(194,52,77,.18); border: 1px solid var(--accent2); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
+.adv .schrank { background: linear-gradient(180deg, rgba(28,26,37,.92), rgba(12,11,16,.95)); border: 2px solid rgba(232,180,79,.55); border-radius: 18px; padding: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.7), inset 0 0 30px rgba(232,180,79,.08); }
+.adv .tueren { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.adv .tuer { position: relative; aspect-ratio: 3 / 4; border-radius: 12px 12px 6px 6px; border: 1.5px solid rgba(232,180,79,.75); background: linear-gradient(160deg, #241f2e, #120f18); color: var(--accent); font: 600 26px "Cormorant Garamond", serif; display: grid; place-items: center; padding: 0; cursor: pointer; box-shadow: inset 0 0 0 4px rgba(12,11,16,.9), inset 0 0 0 5px rgba(232,180,79,.25); }
+.adv .tuer::after { content: ""; position: absolute; right: 9px; top: 52%; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .8; }
+.adv .tuer.zu { opacity: .45; cursor: default; color: var(--muted); border-color: rgba(154,149,168,.4); }
+.adv .tuer.zu::before { content: "🔒"; position: absolute; bottom: 6px; font-size: 11px; opacity: .7; }
+.adv .tuer.bereit { animation: tglanz 2.6s ease-in-out infinite; }
+@keyframes tglanz { 0%, 100% { box-shadow: inset 0 0 0 4px rgba(12,11,16,.9), 0 0 0 rgba(232,180,79,0); } 50% { box-shadow: inset 0 0 0 4px rgba(12,11,16,.9), 0 0 16px rgba(232,180,79,.55); } }
+.adv .tuer.auf { background: radial-gradient(circle at 50% 40%, rgba(232,180,79,.28), #120f18 70%); }
+.adv .tuer.auf::before { content: "✦"; position: absolute; top: 8px; font-size: 13px; }
+.adv .tuer.gut::before { content: "🎁"; }
+.adv .tuer.ein::before { content: "✓"; color: #7fd18b; }
+.adv .advtab { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 18px; background: rgba(28,26,37,.85); border-radius: 12px; overflow: hidden; }
+.adv .advtab td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.adv .advtab .btn { padding: 5px 10px; font-size: 12px; }
+.advsheet .art { font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--accent2); }
+.advsheet h3 { font-family: "Cormorant Garamond", serif; font-size: 26px; color: var(--accent); margin: 2px 0 10px; }
+.advsheet .inh { font-family: Literata, Georgia, serif; font-size: 17px; line-height: 1.6; max-height: 52vh; overflow: auto; }
+.advsheet .inh p { margin: 0 0 .8em; }
+.advsheet .gut { margin-top: 12px; padding: 12px; border: 1px dashed var(--accent); border-radius: 12px; text-align: center; font-size: 14px; }
+
 /* ---------- Neuigkeiten für Markus (seit 21.10.2026) ---------- */
 .fqcard .nbadge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: var(--accent2); color: #fff; font: 600 12px system-ui, sans-serif; text-align: center; vertical-align: 3px; }
 .nb .nbpush { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; }
@@ -1065,6 +1093,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       h += `<div class="intro">${DATA.app.introImage ? `<a href="#/bibliothek" class="introimg"><img src="${DATA.app.introImage}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
     }
+    if (sb && adventSichtbar) h += `<a class="fqcard" href="#/advent"><span class="fqi">🕯</span><span><b>Adventskalender${istAdmin ? " (Vorschau)" : ""}</b><span>${istAdmin ? "Alle Türen im Testmodus + Übersicht" : "Jeden Tag im Dezember ein Türchen"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
     if (sb && briefFuer) {
       h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Sklaven"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
     } else if (sb) {
@@ -1602,6 +1631,70 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     });
     return h + "</div>";
   }
+  /* ---------- Adventskalender: Inhalte nur aus der Supabase-Tabelle advent (Datumssperre per RLS) ---------- */
+  const berlin = (() => { try { const p = Object.fromEntries(new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", month: "numeric", day: "numeric" }).formatToParts(new Date()).map(x => [x.type, x.value])); return { m: +p.month, d: +p.day }; } catch (e) { const n = new Date(); return { m: n.getMonth() + 1, d: n.getDate() }; } })();
+  const adventSichtbar = !!user && (istAdmin || berlin.m === 12 || (berlin.m === 1 && berlin.d <= 6));
+  const ADV_ORD = [7, 15, 2, 21, 11, 4, 18, 9, 1, 13, 23, 6, 16, 3, 20, 10, 24, 8, 14, 5, 19, 12, 22, 17];   // wild verteilt wie ein echter Kalender
+  let ADV = null;
+  async function advLaden() {
+    try {
+      const { data, error } = await sb.from("advent").select("*").order("tag");
+      if (error) throw error;
+      ADV = Object.fromEntries((data || []).map(r => [r.tag, r]));
+    } catch (e) { ADV = { fehler: true }; }
+    if (location.hash.startsWith("#/advent")) route();
+  }
+  const advZ = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "";
+  function viewAdvent() {
+    let h = header() + `<div class="wrap adv">${DATA.app.adventBild ? `<div class="advbg" style="background-image:url('${DATA.app.adventBild}')"></div>` : ""}
+      <h2>Adventskalender</h2><p class="advsub">Für meine Herrin – jeden Tag ein Türchen</p>`;
+    if (!sb || !adventSichtbar) return h + '<div class="empty">Noch ist es nicht so weit …</div></div>';
+    if (istAdmin) h += '<div class="advtest"><b>Testmodus:</b> Du siehst alle Türen und kannst sie öffnen. Dein Öffnen zählt nicht – für deine Herrin öffnet sich Tür N erst ab dem N. Dezember.</div>';
+    if (!ADV) return h + '<div class="loading">Lädt …</div></div>';
+    if (ADV.fehler) return h + '<div class="empty">Der Kalender konnte nicht geladen werden.</div></div>';
+    h += `<div class="schrank"><div class="tueren">${ADV_ORD.map(t => {
+      const r = ADV[t], st = !r ? "zu" : r.eingeloest_at ? "auf ein" : r.geoeffnet_at ? "auf" + (r.art === "Gutschein" ? " gut" : "") : "bereit";
+      return `<button type="button" class="tuer ${st}" data-t="${t}" ${r ? "" : "disabled"} aria-label="Türchen ${t}">${t}</button>`;
+    }).join("")}</div></div>`;
+    if (istAdmin) {
+      h += `<table class="advtab">${Array.from({ length: 24 }, (_, i) => ADV[i + 1]).filter(Boolean).map(r => `<tr><td>${r.tag}</td><td>${esc(r.art === "leer" ? "Platzhalter" : r.art)}<br><small>${esc(r.titel)}</small></td>
+        <td>${r.geoeffnet_at ? "geöffnet " + advZ(r.geoeffnet_at) : "–"}${r.eingeloest_at ? "<br>eingelöst " + advZ(r.eingeloest_at) : ""}${r.erledigt_at ? "<br>erledigt " + advZ(r.erledigt_at) : ""}</td>
+        <td>${r.eingeloest_at && !r.erledigt_at ? `<button type="button" class="btn" data-erl="${r.tag}">Erledigt</button>` : ""}</td></tr>`).join("")}</table>`;
+    }
+    return h + "</div>";
+  }
+  function advTuer(t) {
+    const r = ADV[t];
+    if (!r) return;
+    const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
+    const gut = r.art === "Gutschein" ? `<div class="gut" id="advGut">${r.erledigt_at ? "Erledigt ✓ – eingelöst am " + advZ(r.eingeloest_at)
+      : r.eingeloest_at ? "Eingelöst am " + advZ(r.eingeloest_at) + " – dein Sklave weiß Bescheid."
+      : `${r.gueltig ? "Gültig: " + esc(r.gueltig) + "<br>" : ""}<button type="button" class="btn" id="advEin" style="margin-top:8px">Gutschein einlösen</button>`}</div>` : "";
+    sh.innerHTML = `<div class="advsheet"><div class="art">Türchen ${t}${r.art !== "leer" ? " · " + esc(r.art) : ""}</div><h3>${esc(r.titel)}</h3><div class="inh">${r.inhalt}</div>${gut}</div>`;
+    bg.style.display = "block";
+    requestAnimationFrame(() => sh.classList.add("open"));
+    sh.onclick = async e => {
+      if (!e.target.closest("#advEin")) return;
+      if (!confirm("Diesen Gutschein jetzt einlösen?")) return;
+      const { data, error } = await sb.rpc("advent_einloesen", { t });
+      const g = document.getElementById("advGut");
+      if (error) { g.textContent = "Hat nicht geklappt – bitte später noch einmal."; return; }
+      g.textContent = data === "test" ? "Testmodus: In deinem Konto wird nichts eingelöst." : "Eingelöst ✓ – dein Sklave weiß Bescheid.";
+      if (data === "ok" || data === "schon") { r.eingeloest_at = r.eingeloest_at || new Date().toISOString(); }
+    };
+    if (!istAdmin && !r.geoeffnet_at) { r.geoeffnet_at = new Date().toISOString(); sb.rpc("advent_oeffnen", { t }).then(() => {}, () => {}); }
+  }
+  function advBind() {
+    const box = document.querySelector(".adv");
+    if (!box || !ADV || ADV.fehler) return;
+    box.onclick = async e => {
+      const d = e.target.closest(".tuer");
+      if (d && !d.disabled) { advTuer(+d.dataset.t); d.className = d.className.replace("bereit", "auf"); return; }
+      const x = e.target.closest("[data-erl]");
+      if (x) { await sb.rpc("advent_erledigt", { t: +x.dataset.erl }); ADV = null; advLaden(); }
+    };
+  }
+
   /* ---------- Neuigkeiten (nur Markus): Ereignisse + Antworten direkt aus Supabase ---------- */
   let NB = null, nbUngesehen = 0, nbPopup = false;
   async function nbZahl() {
@@ -1614,14 +1707,19 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     } catch (e) {}
   }
   async function nbPop() {
-    const { data } = await sb.from("ereignisse").select("text, created_at").is("gesehen_at", null).neq("art", "test").order("created_at", { ascending: false }).limit(6);
+    const { data } = await sb.from("ereignisse").select("text, created_at, art, ref").is("gesehen_at", null).neq("art", "test").order("created_at", { ascending: false }).limit(6);
     if (!data || !data.length) return;
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
-    sh.innerHTML = `<div class="nbpop"><h4>${data.length === 1 ? "Eine Neuigkeit" : (nbUngesehen > 6 ? nbUngesehen : data.length) + " Neuigkeiten"}</h4><ul>${data.map(x => `<li>${esc(x.text)}</li>`).join("")}</ul>
+    sh.innerHTML = `<div class="nbpop"><h4>${data.length === 1 ? "Eine Neuigkeit" : (nbUngesehen > 6 ? nbUngesehen : data.length) + " Neuigkeiten"}</h4><ul>${data.map(x => `<li>${esc(x.text)}${x.art === "gutschein" && x.ref && x.ref.tag ? ` <button type="button" class="btn" data-erl="${x.ref.tag}" style="padding:4px 10px;font-size:12px">Erledigt</button>` : ""}</li>`).join("")}</ul>
       <a class="btn wide" href="#/neuigkeiten">Ansehen</a></div>`;
     bg.style.display = "block";
     requestAnimationFrame(() => sh.classList.add("open"));
-    sh.onclick = null;
+    sh.onclick = async e => {
+      const b = e.target.closest("[data-erl]");
+      if (!b) return;
+      await sb.rpc("advent_erledigt", { t: +b.dataset.erl });
+      b.outerHTML = "<b> ✓ erledigt</b>";
+    };
   }
   async function nbLaden() {
     try {
@@ -1653,6 +1751,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (BR) h += brItems().filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q || f.label || f.id, wert(a[f.id].v))).join("");
       return h;
     }
+    if (e.art === "gutschein") return `<dd>Gutschein aus Türchen ${e.ref.tag} – im <a href="#/advent">Adventskalender</a> als „Erledigt“ markieren.</dd>`;
     if (e.art === "fragebogen") return zeile("Abgeschickt", z((d.fragen || {}).sent)) + "<dd>Alle Antworten: Startseite → „Antworten aus dem Fragebogen“ (nach <code>wm.py fragebogen</code>).</dd>";
     return "";
   }
@@ -1894,6 +1993,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "briefantworten") html = viewBriefAntw();
     else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
     else if (parts[0] === "neuigkeiten") html = viewNeuigkeiten();
+    else if (parts[0] === "advent") html = viewAdvent();
     else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw();
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
@@ -1940,6 +2040,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (parts[0] === "brief") bindBrief();
     if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
     if (parts[0] === "kapitelfeedbackantworten" && !KFA && sb && kfbLeser) loadBrief("kapitelfeedback_antworten.json", d => { KFA = d; });
+    if (parts[0] === "advent" && sb && adventSichtbar) { if (fresh) ADV = null; if (!ADV) advLaden(); else advBind(); }
     if (parts[0] === "neuigkeiten" && sb && istAdmin) {
       on("nbEin", pushEin); on("nbTest", pushTest);
       if (fresh || !NB) { if (fresh) NB = null; if (!NB) nbLaden(); }

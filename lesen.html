@@ -372,6 +372,37 @@ body.reading .tabbar { display: none; }
 .advsheet .inh p { margin: 0 0 .8em; }
 .advsheet .gut { margin-top: 12px; padding: 12px; border: 1px dashed var(--accent); border-radius: 12px; text-align: center; font-size: 14px; }
 
+/* Kalenderbild mit Klickflächen (4×6) */
+.adv .bildkal { position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.7); }
+.adv .bildkal img { display: block; width: 100%; height: auto; }
+.adv .bildkal .tuer { position: absolute; aspect-ratio: auto; border: 0; border-radius: 4px; background: transparent; box-shadow: none; font-size: clamp(18px, 6vw, 30px); text-shadow: 0 1px 6px #000, 0 0 12px rgba(0,0,0,.9); }
+.adv .bildkal .tuer::after { display: none; }
+.adv .bildkal .tuer.zu { background: rgba(12,11,16,.45); opacity: 1; color: rgba(232,180,79,.55); }
+.adv .bildkal .tuer.bereit { animation: tglanz2 2.6s ease-in-out infinite; }
+@keyframes tglanz2 { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(232,180,79,.2); } 50% { box-shadow: inset 0 0 18px rgba(232,180,79,.6), 0 0 14px rgba(232,180,79,.45); } }
+.adv .bildkal .tuer.auf { background: radial-gradient(circle at 50% 45%, rgba(232,180,79,.42), rgba(12,11,16,.35) 72%); }
+.advsheet .inh h4.teil { font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--accent); margin: 18px 0 8px; }
+.advsheet .inh hr.sz { border: 0; text-align: center; margin: 1em 0; }
+.advsheet .inh hr.sz::after { content: "✦"; color: var(--accent); }
+
+/* Kapitelfeedback-Auswertung für Markus */
+.kfa .ksum { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 0 0 12px; font-size: 14px; }
+.kfa .ksum table { width: 100%; border-collapse: collapse; }
+.kfa .ksum td { padding: 5px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.kfa .ksum td.z { text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kfa .ksum small { color: var(--muted); }
+.kfa .kbem { margin: 8px 0 0; padding-left: 18px; }
+.kfa .kbem li { margin: 4px 0; white-space: pre-line; }
+.kfa details.kk { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; }
+.kfa details.kk.neu { border-color: var(--accent); }
+.kfa details.kk > summary { list-style: none; cursor: pointer; padding: 10px 12px; display: flex; justify-content: space-between; gap: 10px; }
+.kfa details.kk > summary::-webkit-details-marker { display: none; }
+.kfa details.kk > summary span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.kfa details.kk > summary .neu { color: var(--accent); font-weight: 600; }
+.kfa details.kk dl { margin: 0; padding: 0 12px 10px; }
+.kfa details.kk dt { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.kfa details.kk dd { margin: 1px 0 0; white-space: pre-line; }
+
 /* ---------- Neuigkeiten für Markus (seit 21.10.2026) ---------- */
 .fqcard .nbadge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: var(--accent2); color: #fff; font: 600 12px system-ui, sans-serif; text-align: center; vertical-align: 3px; }
 .nb .nbpush { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; }
@@ -1100,7 +1131,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
       if (istAdmin) h += `<a class="fqcard" href="#/neuigkeiten"><span class="fqi">🔔</span><span><b>Neuigkeiten<span class="nbadge" id="nbBadge" style="${nbUngesehen ? "" : "display:none"}">${nbUngesehen}</span></b><span>Was deine Herrin gelesen, beantwortet oder eingelöst hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (fgLeser) h += `<a class="fqcard" href="#/fragebogenantworten"><span class="fqi">☰</span><span><b>Antworten aus dem Fragebogen</b><span>Was deine Herrin sich wünscht</span></span><span class="fqgo">Ansehen ›</span></a>`;
-      if (kfbLeser) h += `<a class="fqcard" href="#/kapitelfeedbackantworten"><span class="fqi">¶</span><span><b>Feedback zu den Kapiteln</b><span>Kurzfeedback unter den Kapiteln</span></span><span class="fqgo">Ansehen ›</span></a>`;
+      if (kfbLeser) h += `<a class="fqcard" href="#/kapitelfeedbackantworten"><span class="fqi">¶</span><span><b>Kapitelfeedback</b><span>Werte je Kapitel + Auswertung pro Band</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (fbbLeser) h += `<a class="fqcard" href="#/feedbackantworten"><span class="fqi">✎</span><span><b>Feedback zu den Büchern</b><span>Was am Buchende geantwortet wurde</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (briefLeser) h += `<a class="fqcard" href="#/briefantworten"><span class="fqi">✉︎</span><span><b>Antworten auf deinen Brief</b><span>Was deine Herrin geantwortet hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       h += `<a class="fqcard" href="#/fragen"><span class="fqi">✒︎</span><span><b>Fragebogen: Deine Wunschgeschichten</b><span>${fragen.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : n ? n + (n === 1 ? " Antwort" : " Antworten") + " gespeichert – hier weitermachen" : "Sag mir, welche Geschichten du lesen möchtest – ich schreibe sie für dich."}</span></span><span class="fqgo">${fragen.sent ? "Ändern" : n ? "Weiter" : "Los geht's"} ›</span></a>`;
@@ -1618,19 +1649,67 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     };
     box.querySelectorAll("textarea").forEach(t => { t.onblur = () => { if (kfbT) { clearTimeout(kfbT); kfbT = 0; kfbSet(k, t.dataset.kt, t.value); } }; });
   }
-  let KFA = null;
-  function viewKfbAntw() {
-    let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Feedback zu den Kapiteln</h3></div>';
+  /* Kapitelfeedback für Markus: live aus allen progress-Zeilen (RLS: nur Markus), mit Auswertung je Band */
+  let KFL = null;
+  async function kflLaden() {
+    try {
+      const { data, error } = await sb.from("progress").select("user_id, data");
+      if (error) throw error;
+      KFL = (data || []).filter(r => r.user_id !== user.id).map(r => ({ uid: r.user_id, kfb: (r.data || {}).kfb || {} }));
+    } catch (e) { KFL = { fehler: true }; }
+    if (location.hash.startsWith("#/kapitelfeedbackantworten")) route();
+  }
+  function viewKfbAntw(ziel) {
+    let h = header() + '<div class="wrap kfa"><div class="sec"><h3>Kapitelfeedback</h3></div>';
     if (!sb || !kfbLeser) return h + '<div class="empty">Nicht verfügbar.</div></div>';
-    if (!KFA) return h + '<div class="loading">Lädt …</div></div>';
+    if (!KFL) return h + '<div class="loading">Lädt …</div></div>';
+    if (KFL.fehler) return h + '<div class="empty">Konnte nicht geladen werden.</div></div>';
     const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
-    h += `<p class="dedication">Stand vom ${z(KFA.stand)} – aktualisieren mit <code>wm.py kapitelfeedback</code>.</p>`;
-    if (!KFA.baende.length) h += '<div class="empty">Noch kein Kapitel-Feedback.</div>';
-    KFA.baende.forEach(b => {
-      h += `<div class="bant"><h4>${esc(b.band)}</h4>${b.kapitel.map(k => `<details><summary>Kapitel ${k.nr}${k.titel ? " · " + esc(k.titel) : ""}</summary><dl>${k.eintraege.map(x => `<dt>${esc(x.name)} · ${z(x.t)}</dt><dd>${esc(x.text)}</dd>`).join("")}</dl></details>`).join("")}</div>`;
+    const regler = KFC.fragen.filter(f => f.type === "regler"), texte = KFC.fragen.filter(f => f.type === "text");
+    const gesehen = prefs.kfbGesehen || {}, neuGesehen = Object.assign({}, gesehen);
+    let leer = true;
+    (KFC.baende || []).forEach(nr => {
+      const st = STORIES.concat(ARCHIV).find(x => x.nr === nr);
+      if (!st) return;
+      const kap = [];                                  // [{ch, wer, a, t}]
+      KFL.forEach(r => Object.entries(r.kfb).forEach(([k, e]) => {
+        const [bid, ch] = k.split("/");
+        if (bid !== st.id) return;
+        const a = (e || {}).a || {}, werte = Object.values(a).filter(x => x.v !== "" && x.v != null);
+        if (werte.length) kap.push({ ch: +ch, uid: r.uid, a, t: Math.max(...werte.map(x => x.t || 0)) });
+      }));
+      if (!kap.length) return;
+      leer = false;
+      kap.sort((x, y) => x.ch - y.ch);
+      const titel = ch => (st.chapters && st.chapters[ch] && st.chapters[ch].title) || "";
+      // Auswertung
+      let sum = '<table>';
+      regler.forEach(f => {
+        const n = kap.filter(k => typeof (k.a[f.id] || {}).v === "number");
+        const keine = kap.filter(k => (k.a[f.id] || {}).v === "keine").length;
+        if (!n.length && !keine) return;
+        const avg = n.length ? (n.reduce((s, k) => s + k.a[f.id].v, 0) / n.length).toFixed(1).replace(".", ",") : "–";
+        const lo = n.length ? n.reduce((m, k) => k.a[f.id].v < m.a[f.id].v ? k : m) : null, hi = n.length ? n.reduce((m, k) => k.a[f.id].v > m.a[f.id].v ? k : m) : null;
+        sum += `<tr><td>${esc(f.q)}<br><small>${n.length ? `niedrigste: Kap. ${lo.ch + 1} (${lo.a[f.id].v}) · höchste: Kap. ${hi.ch + 1} (${hi.a[f.id].v})` : ""}${keine ? `${n.length ? " · " : ""}${keine}× keine Szene` : ""}</small></td><td class="z">Ø ${avg}<br><small>${n.length} Kap.</small></td></tr>`;
+      });
+      sum += "</table>";
+      const bem = kap.flatMap(k => texte.filter(f => k.a[f.id] && String(k.a[f.id].v).trim()).map(f => `<li><b>Kap. ${k.ch + 1}:</b> ${esc(String(k.a[f.id].v).trim())}</li>`));
+      h += `<div class="sec"><h3>${esc(st.title)}</h3><span>Band ${nr} · ${kap.length} Kapitel mit Feedback</span></div>
+        <div class="ksum"><b>Auswertung</b>${sum}${bem.length ? `<b>Alle Bemerkungen</b><ul class="kbem">${bem.join("")}</ul>` : ""}</div>`;
+      kap.forEach(k => {
+        const key = st.id + "/" + k.ch, neu = k.t > (gesehen[key] || 0), offen = ziel && ziel[0] === st.id && +ziel[1] === k.ch;
+        neuGesehen[key] = Math.max(neuGesehen[key] || 0, k.t);
+        h += `<details class="kk ${neu ? "neu" : ""}" id="kk_${st.id}_${k.ch}" ${offen || neu ? "open" : ""}><summary><b>Kap. ${k.ch + 1}${titel(k.ch) ? " · " + esc(titel(k.ch)) : ""}</b><span>${neu ? '<span class="neu">neu</span> · ' : ""}${z(k.t)}</span></summary><dl>${KFC.fragen.filter(f => k.a[f.id] && k.a[f.id].v !== "" && k.a[f.id].v != null).map(f => {
+          const v = k.a[f.id].v;
+          return `<dt>${esc(f.q)}</dt><dd>${v === "keine" ? "keine Szene" : typeof v === "number" ? v + "/10" : esc(String(v))}</dd>`;
+        }).join("")}</dl></details>`;
+      });
     });
+    if (leer) h += '<div class="empty">Noch kein Kapitelfeedback.</div>';
+    if (JSON.stringify(neuGesehen) !== JSON.stringify(gesehen)) { prefs.kfbGesehen = neuGesehen; setTimeout(() => save("prefs", prefs), 0); }
     return h + "</div>";
   }
+
   /* ---------- Adventskalender: Inhalte nur aus der Supabase-Tabelle advent (Datumssperre per RLS) ---------- */
   const berlin = (() => { try { const p = Object.fromEntries(new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", month: "numeric", day: "numeric" }).formatToParts(new Date()).map(x => [x.type, x.value])); return { m: +p.month, d: +p.day }; } catch (e) { const n = new Date(); return { m: n.getMonth() + 1, d: n.getDate() }; } })();
   const adventSichtbar = !!user && (istAdmin || berlin.m === 12 || (berlin.m === 1 && berlin.d <= 6));
@@ -1646,16 +1725,23 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   const advZ = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "";
   function viewAdvent() {
-    let h = header() + `<div class="wrap adv">${DATA.app.adventBild ? `<div class="advbg" style="background-image:url('${DATA.app.adventBild}')"></div>` : ""}
+    let h = header() + `<div class="wrap adv">${DATA.app.adventBild && !DATA.app.adventRaster ? `<div class="advbg" style="background-image:url('${DATA.app.adventBild}')"></div>` : ""}
       <h2>Adventskalender</h2><p class="advsub">Für meine Herrin – jeden Tag ein Türchen</p>`;
     if (!sb || !adventSichtbar) return h + '<div class="empty">Noch ist es nicht so weit …</div></div>';
     if (istAdmin) h += '<div class="advtest"><b>Testmodus:</b> Du siehst alle Türen und kannst sie öffnen. Dein Öffnen zählt nicht – für deine Herrin öffnet sich Tür N erst ab dem N. Dezember.</div>';
     if (!ADV) return h + '<div class="loading">Lädt …</div></div>';
     if (ADV.fehler) return h + '<div class="empty">Der Kalender konnte nicht geladen werden.</div></div>';
-    h += `<div class="schrank"><div class="tueren">${ADV_ORD.map(t => {
-      const r = ADV[t], st = !r ? "zu" : r.eingeloest_at ? "auf ein" : r.geoeffnet_at ? "auf" + (r.art === "Gutschein" ? " gut" : "") : "bereit";
-      return `<button type="button" class="tuer ${st}" data-t="${t}" ${r ? "" : "disabled"} aria-label="Türchen ${t}">${t}</button>`;
-    }).join("")}</div></div>`;
+    const tuerStatus = r => !r ? "zu" : r.eingeloest_at ? "auf ein" : r.geoeffnet_at ? "auf" + (r.art === "Gutschein" ? " gut" : "") : "bereit";
+    const R = DATA.app.adventRaster;
+    if (DATA.app.adventBild && R) {       // Kalenderbild mit 4×6 Türen: Klickflächen genau über die gemalten Türen
+      const w = (R[2] - R[0]) / 4, hh = (R[3] - R[1]) / 6;
+      h += `<div class="bildkal"><img src="${DATA.app.adventBild}" alt="Adventskalender">${ADV_ORD.map((t, i) => {
+        const r = ADV[t], x = R[0] + (i % 4) * w, y = R[1] + Math.floor(i / 4) * hh;
+        return `<button type="button" class="tuer ${tuerStatus(r)}" data-t="${t}" ${r ? "" : "disabled"} style="left:${(x + w * .06).toFixed(2)}%;top:${(y + hh * .06).toFixed(2)}%;width:${(w * .88).toFixed(2)}%;height:${(hh * .88).toFixed(2)}%" aria-label="Türchen ${t}">${t}</button>`;
+      }).join("")}</div>`;
+    } else {
+      h += `<div class="schrank"><div class="tueren">${ADV_ORD.map(t => `<button type="button" class="tuer ${tuerStatus(ADV[t])}" data-t="${t}" ${ADV[t] ? "" : "disabled"} aria-label="Türchen ${t}">${t}</button>`).join("")}</div></div>`;
+    }
     if (istAdmin) {
       h += `<table class="advtab">${Array.from({ length: 24 }, (_, i) => ADV[i + 1]).filter(Boolean).map(r => `<tr><td>${r.tag}</td><td>${esc(r.art === "leer" ? "Platzhalter" : r.art)}<br><small>${esc(r.titel)}</small></td>
         <td>${r.geoeffnet_at ? "geöffnet " + advZ(r.geoeffnet_at) : "–"}${r.eingeloest_at ? "<br>eingelöst " + advZ(r.eingeloest_at) : ""}${r.erledigt_at ? "<br>erledigt " + advZ(r.erledigt_at) : ""}</td>
@@ -1739,7 +1825,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const zeile = (q, v) => `<dt>${esc(q)}</dt><dd>${esc(v)}</dd>`, wert = v => Array.isArray(v) ? v.join(" · ") : v === "keine" ? "keine Szene" : typeof v === "number" ? v + "/10" : String(v);
     if (e.art === "kapitelfeedback" && KFC) {
       const a = ((d.kfb || {})[e.ref.buch + "/" + e.ref.kapitel] || {}).a || {};
-      return KFC.fragen.filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>";
+      return (KFC.fragen.filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>")
+        + `<dd><a href="#/kapitelfeedbackantworten/${e.ref.buch}/${e.ref.kapitel}">Im Kapitelfeedback ansehen ›</a></dd>`;
     }
     if (e.art === "buchfeedback" && FBC) {
       const a = ((d.fbb || {})[e.ref.buch] || {}).a || {};
@@ -1994,7 +2081,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
     else if (parts[0] === "neuigkeiten") html = viewNeuigkeiten();
     else if (parts[0] === "advent") html = viewAdvent();
-    else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw();
+    else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw(parts[1] ? [parts[1], parts[2]] : null);
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
       const st = byId[parts[1]];
@@ -2039,7 +2126,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (parts[0] === "reihe") karteBind();
     if (parts[0] === "brief") bindBrief();
     if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
-    if (parts[0] === "kapitelfeedbackantworten" && !KFA && sb && kfbLeser) loadBrief("kapitelfeedback_antworten.json", d => { KFA = d; });
+    if (parts[0] === "kapitelfeedbackantworten" && sb && kfbLeser) {
+      if (fresh) KFL = null;
+      if (!KFL) kflLaden();
+      else if (parts[1]) { const el = document.getElementById("kk_" + parts[1] + "_" + parts[2]); if (el) setTimeout(() => el.scrollIntoView({ block: "center" }), 50); }
+    }
     if (parts[0] === "advent" && sb && adventSichtbar) { if (fresh) ADV = null; if (!ADV) advLaden(); else advBind(); }
     if (parts[0] === "neuigkeiten" && sb && istAdmin) {
       on("nbEin", pushEin); on("nbTest", pushTest);

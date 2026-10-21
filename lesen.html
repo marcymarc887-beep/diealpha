@@ -336,6 +336,14 @@ body.reading .tabbar { display: none; }
 .fbb .fbbs { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(128,128,128,.25); font-size: 13px; }
 .fbb .fbbs span { opacity: .8; }
 
+/* ---------- Kurzfeedback unter jedem Kapitel (seit 21.10.2026, steuerbar über app.kapitelfeedback) ---------- */
+.kfb { margin: 28px auto 6px; max-width: 460px; }
+.kfb > summary { font-size: 13px; padding: 10px 14px; }
+.kfb > summary b { font-weight: 600; }
+.kfb .rgx { display: flex; justify-content: space-between; font-size: 11px; opacity: .7; margin-top: -2px; }
+.kfb .kohne { font: inherit; font-size: 12px; color: inherit; margin-top: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(128,128,128,.45); background: transparent; }
+.kfb .kohne.on { background: rgba(128,128,128,.35); }
+
 /* ---------- Rückmeldung am Buchende (seit 15.10.2026) ---------- */
 .fb { margin: 6px auto 22px; max-width: 420px; padding: 16px; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; text-align: center; }
 .fb .fbq { font-family: "Cormorant Garamond", serif; font-size: 20px; margin: 0 0 12px; }
@@ -471,6 +479,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* Feedbackbogen (seit 20.10.2026): stories.json → app.feedback = {ab: 1001, leser: [...], fragen: [...]} – für Bände ab „ab“ und alle nicht archivierten */
   const FBC = DATA.app.feedback || null;
   const fbbFuer = st => !!FBC && st.status === "fertig" && ((st.nr || 0) >= FBC.ab || (!isArch(st) && (st.nr || 0) < 9000));
+  const KFC = DATA.app.kapitelfeedback || null;
+  const kfbFuer = st => !!KFC && (KFC.baende || []).includes(st.nr);
+  const kfbLeser = !!user && !!KFC && (KFC.leser || []).includes(konto);
   const fbbLeser = !!user && !!FBC && (FBC.leser || []).includes(konto);
   const briefFuer = !!user && (BC.fuer || []).includes(konto), briefLeser = !!user && (BC.leser || []).includes(konto);
   const userName = user ? (user.user_metadata && user.user_metadata.name) || user.email.split("@")[0].replace(/^./, c => c.toUpperCase()) : "";
@@ -482,7 +493,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief" || k === "fbb") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief" || k === "fbb" || k === "kfb") pushSoon();
   }
   let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done, start, again, re, last}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
@@ -492,7 +503,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let log = load("log", {});
   let fragen = load("fragen", { a: {} });
   let brief = load("brief", { a: {} });
-  let fbb = load("fbb", {});               // Feedbackbogen je Buch {id: {a: {frageId: {v, t}}, sent}} – seit 20.10.2026    // Antworten im Brief „Für meine Herrin“ {a: {id: {v, t}}, sent} – seit 20.10.2026  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
+  let fbb = load("fbb", {});
+  let kfb = load("kfb", {});               // Kurzfeedback je Kapitel {"buchId/kapitelIndex": {a: {frageId: {v, t}}}} – seit 21.10.2026               // Feedbackbogen je Buch {id: {a: {frageId: {v, t}}, sent}} – seit 20.10.2026    // Antworten im Brief „Für meine Herrin“ {a: {id: {v, t}}, sent} – seit 20.10.2026  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
 
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
   let pushT = 0;
@@ -506,21 +518,23 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return changed;
   }
   const mergeFragen = r => mergeAnt(fragen, r);
-  function mergeFbb(r) {
+  function mergeFbb(r, ziel) {
+    ziel = ziel || fbb;
     let changed = false;
-    Object.entries(r || {}).forEach(([id, x]) => { if (mergeAnt(fbb[id] || (fbb[id] = { a: {} }), x)) changed = true; });
+    Object.entries(r || {}).forEach(([id, x]) => { if (mergeAnt(ziel[id] || (ziel[id] = { a: {} }), x)) changed = true; });
     return changed;
   }
   async function pushNow() {
     if (!sb) return false;
     clearTimeout(pushT);
     try {
-      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief,fbb:data->fbb").eq("user_id", user.id).maybeSingle();
+      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief,fbb:data->fbb,kfb:data->kfb").eq("user_id", user.id).maybeSingle();
       if (rf.error) return false;                       // ohne Serverstand nicht schreiben (Antworten schützen)
       if (rf.data && mergeFragen(rf.data.fragen)) { mem.fragen = fragen; try { localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); } catch (e) {} }
       if (rf.data && mergeAnt(brief, rf.data.brief)) { mem.brief = brief; try { localStorage.setItem(PFX + "brief", JSON.stringify(brief)); } catch (e) {} }
       if (rf.data && mergeFbb(rf.data.fbb)) { mem.fbb = fbb; try { localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); } catch (e) {} }
-      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief, fbb }, updated_at: new Date().toISOString() });
+      if (rf.data && mergeFbb(rf.data.kfb, kfb)) { mem.kfb = kfb; try { localStorage.setItem(PFX + "kfb", JSON.stringify(kfb)); } catch (e) {} }
+      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief, fbb, kfb }, updated_at: new Date().toISOString() });
       return !error;
     } catch (e) { return false; }
   }
@@ -552,8 +566,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (mergeFragen(r.fragen)) changed = true;
       if (mergeAnt(brief, r.brief)) changed = true;
       if (mergeFbb(r.fbb)) changed = true;
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief; mem.fbb = fbb;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); } catch (e) {}
+      if (mergeFbb(r.kfb, kfb)) changed = true;
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief; mem.fbb = fbb; mem.kfb = kfb;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); localStorage.setItem(PFX + "kfb", JSON.stringify(kfb)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -1017,6 +1032,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
       if (fgLeser) h += `<a class="fqcard" href="#/fragebogenantworten"><span class="fqi">☰</span><span><b>Antworten aus dem Fragebogen</b><span>Was deine Herrin sich wünscht</span></span><span class="fqgo">Ansehen ›</span></a>`;
+      if (kfbLeser) h += `<a class="fqcard" href="#/kapitelfeedbackantworten"><span class="fqi">¶</span><span><b>Feedback zu den Kapiteln</b><span>Kurzfeedback unter den Kapiteln</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (fbbLeser) h += `<a class="fqcard" href="#/feedbackantworten"><span class="fqi">✎</span><span><b>Feedback zu den Büchern</b><span>Was am Buchende geantwortet wurde</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (briefLeser) h += `<a class="fqcard" href="#/briefantworten"><span class="fqi">✉︎</span><span><b>Antworten auf deinen Brief</b><span>Was deine Herrin geantwortet hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       h += `<a class="fqcard" href="#/fragen"><span class="fqi">✒︎</span><span><b>Fragebogen: Deine Wunschgeschichten</b><span>${fragen.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : n ? n + (n === 1 ? " Antwort" : " Antworten") + " gespeichert – hier weitermachen" : "Sag mir, welche Geschichten du lesen möchtest – ich schreibe sie für dich."}</span></span><span class="fqgo">${fragen.sent ? "Ändern" : n ? "Weiter" : "Los geht's"} ›</span></a>`;
@@ -1188,7 +1204,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     <div class="reader" id="reader" data-theme="${prefs.theme}" data-font="${prefs.font}" style="--fs:${prefs.fs}px">
       <div class="wrap">
         <div class="kick">Kapitel ${ch + 1}</div><h1>${esc(c.title)}</h1>${buchKarten(st, ch)}
-        <div class="txt">${c.blocks.map(blockHTML).join("")}</div>
+        <div class="txt">${c.blocks.map(blockHTML).join("")}</div>${kfbHTML(st, ch)}
         <div class="rend">${ch === n - 1 && st.status === "fertig" ? `<div class="fin">Ende</div>${fbHTML(st.id)}` : ""}<div class="of">Kapitel ${ch + 1} von ${n}${ch === n - 1 && st.status !== "fertig" ? " · weitere Kapitel folgen" : ""}</div>
           <div class="rnav">
             ${ch > 0 ? `<a class="btn ghost" href="#/read/${st.id}/${ch - 1}">Zurück</a>` : ""}
@@ -1481,6 +1497,60 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     });
     return h + "</div>";
   }
+  /* ---------- Kurzfeedback unter jedem Kapitel ---------- */
+  let kfbT = 0;
+  const kfbV = (k, q) => ((kfb[k] || {}).a || {})[q] && kfb[k].a[q].v;
+  function kfbSet(k, q, v) { const e = kfb[k] || (kfb[k] = { a: {} }); e.a[q] = { v, t: Date.now() }; save("kfb", kfb); const m = document.getElementById("kfbMsg"); if (m) m.textContent = "Gespeichert ✓"; }
+  function kfbQ(k, f) {
+    const v = kfbV(k, f.id);
+    if (f.type === "text") return `<h5>${esc(f.q)}</h5><textarea data-kt="${f.id}" maxlength="4000" placeholder="(optional)">${esc(v || "")}</textarea>`;
+    const ohne = v === "keine";
+    return `<h5>${esc(f.q)}${f.mitte ? ` <small>(${esc(f.mitte)})</small>` : ""}</h5>
+      <div class="rgl"><input type="range" min="1" max="10" step="1" value="${typeof v === "number" ? v : 5}" class="${typeof v === "number" ? "" : "unset"}" data-kq="${f.id}" aria-label="${esc(f.q)} 1 bis 10"><b>${typeof v === "number" ? v : "–"}</b></div>
+      <div class="rgx"><span>1 = ${esc(f.min || "")}</span><span>10 = ${esc(f.max || "")}</span></div>
+      ${f.ohne ? `<button type="button" class="kohne ${ohne ? "on" : ""}" data-ko="${f.id}">${esc(f.ohne)}</button>` : ""}`;
+  }
+  function kfbHTML(st, ch) {
+    if (!kfbFuer(st)) return "";
+    const k = st.id + "/" + ch, n = Object.values((kfb[k] || {}).a || {}).filter(x => x.v !== "" && x.v != null).length;
+    return `<details class="fbb kfb" id="kfb" data-k="${k}"><summary>Kurzes Feedback zu diesem Kapitel${n ? ` <b>· ${n} ✓</b>` : ""}<small>optional · speichert sich von selbst</small></summary>
+      <div class="fbbi">${KFC.fragen.map(f => `<div class="q" id="kfq_${f.id}">${kfbQ(k, f)}</div>`).join("")}
+      <div class="fbbs"><span id="kfbMsg"></span></div></div></details>`;
+  }
+  function kfbBind() {
+    const box = document.getElementById("kfb");
+    if (!box) return;
+    const k = box.dataset.k, byF = Object.fromEntries(KFC.fragen.map(f => [f.id, f]));
+    box.onclick = e => {
+      const b = e.target.closest(".kohne");
+      if (!b) return;
+      const f = byF[b.dataset.ko];
+      kfbSet(k, f.id, kfbV(k, f.id) === "keine" ? "" : "keine");
+      document.getElementById("kfq_" + f.id).innerHTML = kfbQ(k, f);
+    };
+    box.onchange = e => { const r = e.target; if (r.type === "range") { kfbSet(k, r.dataset.kq, +r.value); document.getElementById("kfq_" + r.dataset.kq).innerHTML = kfbQ(k, byF[r.dataset.kq]); } };
+    box.oninput = e => {
+      const t = e.target;
+      if (t.type === "range") { t.classList.remove("unset"); t.parentNode.querySelector("b").textContent = t.value; return; }
+      if (t.tagName !== "TEXTAREA") return;
+      clearTimeout(kfbT);
+      kfbT = setTimeout(() => { kfbT = 0; kfbSet(k, t.dataset.kt, t.value); }, 700);
+    };
+    box.querySelectorAll("textarea").forEach(t => { t.onblur = () => { if (kfbT) { clearTimeout(kfbT); kfbT = 0; kfbSet(k, t.dataset.kt, t.value); } }; });
+  }
+  let KFA = null;
+  function viewKfbAntw() {
+    let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Feedback zu den Kapiteln</h3></div>';
+    if (!sb || !kfbLeser) return h + '<div class="empty">Nicht verfügbar.</div></div>';
+    if (!KFA) return h + '<div class="loading">Lädt …</div></div>';
+    const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
+    h += `<p class="dedication">Stand vom ${z(KFA.stand)} – aktualisieren mit <code>wm.py kapitelfeedback</code>.</p>`;
+    if (!KFA.baende.length) h += '<div class="empty">Noch kein Kapitel-Feedback.</div>';
+    KFA.baende.forEach(b => {
+      h += `<div class="bant"><h4>${esc(b.band)}</h4>${b.kapitel.map(k => `<details><summary>Kapitel ${k.nr}${k.titel ? " · " + esc(k.titel) : ""}</summary><dl>${k.eintraege.map(x => `<dt>${esc(x.name)} · ${z(x.t)}</dt><dd>${esc(x.text)}</dd>`).join("")}</dl></details>`).join("")}</div>`;
+    });
+    return h + "</div>";
+  }
   let FBA = null;
   function viewFeedbackAntw() {
     let h = header() + '<div class="wrap" id="br"><div class="sec"><h3>Feedback zu den Büchern</h3></div>';
@@ -1678,6 +1748,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "brief") html = viewBrief();
     else if (parts[0] === "briefantworten") html = viewBriefAntw();
     else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
+    else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw();
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
       const st = byId[parts[1]];
@@ -1722,6 +1793,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (parts[0] === "reihe") karteBind();
     if (parts[0] === "brief") bindBrief();
     if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
+    if (parts[0] === "kapitelfeedbackantworten" && !KFA && sb && kfbLeser) loadBrief("kapitelfeedback_antworten.json", d => { KFA = d; });
     if (parts[0] === "feedbackantworten" && !FBA && sb && fbbLeser) loadBrief("feedback_antworten.json", d => { FBA = d; });
     if (parts[0] === "briefantworten" && !BRA && sb && briefLeser) loadBrief("brief_antworten.json", d => { BRA = d; });
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });
@@ -1755,6 +1827,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       on("finish", () => finishBook(id, ch));
       fbBind(id);
       fbbBind(id);
+      kfbBind();
       const bar = document.getElementById("rbar"), prog = document.getElementById("rprog");
       let lastY = 0, t = 0;
       const self = onScroll = () => {

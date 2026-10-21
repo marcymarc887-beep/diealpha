@@ -344,6 +344,24 @@ body.reading .tabbar { display: none; }
 .kfb .kohne { font: inherit; font-size: 12px; color: inherit; margin-top: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(128,128,128,.45); background: transparent; }
 .kfb .kohne.on { background: rgba(128,128,128,.35); }
 
+/* ---------- Neuigkeiten für Markus (seit 21.10.2026) ---------- */
+.fqcard .nbadge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: var(--accent2); color: #fff; font: 600 12px system-ui, sans-serif; text-align: center; vertical-align: 3px; }
+.nb .nbpush { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; }
+.nb .nbpush .btn { padding: 8px 14px; margin: 8px 8px 0 0; font-size: 13px; }
+.nb .nbpush small { display: block; color: var(--muted); margin-top: 8px; }
+.nb .ev { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px; }
+.nb .ev.neu { border-color: var(--accent); }
+.nb .ev > summary { list-style: none; cursor: pointer; padding: 12px 14px; }
+.nb .ev > summary::-webkit-details-marker { display: none; }
+.nb .ev > summary b { display: block; font-weight: 600; font-size: 15px; }
+.nb .ev > summary small { color: var(--muted); font-size: 12px; }
+.nb .ev > summary .neu { color: var(--accent); font-weight: 600; }
+.nb .ev dl { margin: 0; padding: 0 14px 12px; }
+.nb .ev dt { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.nb .ev dd { margin: 2px 0 0; font-size: 15px; white-space: pre-line; }
+.nbpop h4 { margin: 0 0 10px; }
+.nbpop ul { margin: 0 0 14px; padding-left: 18px; font-size: 15px; line-height: 1.5; }
+
 /* ---------- Rückmeldung am Buchende (seit 15.10.2026) ---------- */
 .fb { margin: 6px auto 22px; max-width: 420px; padding: 16px; border: 1px solid rgba(128,128,128,.3); border-radius: 16px; text-align: center; }
 .fb .fbq { font-family: "Cormorant Garamond", serif; font-size: 20px; margin: 0 0 12px; }
@@ -438,7 +456,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 <div class="sheet" id="sheet"></div>
 
 <script type="application/json" id="data">null</script>
-<script type="application/json" id="sbcfg">{"url": "https://kxqklzqyzcymiqxuloem.supabase.co", "key": "sb_publishable_SR9Gq_b6VMSbNqCs640nyA_gmxMnw4v", "bucket": "wolfsmond", "domain": "wolfsmond.app"}</script>
+<script type="application/json" id="sbcfg">{"url": "https://kxqklzqyzcymiqxuloem.supabase.co", "key": "sb_publishable_SR9Gq_b6VMSbNqCs640nyA_gmxMnw4v", "bucket": "wolfsmond", "domain": "wolfsmond.app", "vapid": "BJsspZJglsxFdQd1ktTHB5zmHh1PIYaJH_ZRk7oVeLpZwnv7nJvgUVtwkpqqda8lLz9lsBWc_hoCEE-nrsbGti0"}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function () {
@@ -509,12 +527,30 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Abgleich mit Supabase (Tabelle progress, eine Zeile pro Benutzer) ---------- */
   let pushT = 0;
   function pushSoon() { if (!sb) return; clearTimeout(pushT); pushT = setTimeout(pushNow, 1200); }
+  /* Ereignisse für Markus' Neuigkeiten/Push (seit 21.10.2026): nur aus anderen Konten; offline in einer Warteschlange */
+  const istAdmin = !!user && (user.email || "").toLowerCase() === "markus@wolfsmond.app";
+  let evq = load("evq", []);
+  function ereignis(art, text, ref) {
+    if (!sb || istAdmin) return;
+    evq.push({ art, text, ref: ref || {} }); save("evq", evq);
+    evFlush();
+  }
+  async function evFlush() {
+    if (!sb || !evq.length || !navigator.onLine) return;
+    const jetzt = evq.slice();
+    try {
+      const { error } = await sb.from("ereignisse").insert(jetzt);
+      if (!error) { evq = evq.slice(jetzt.length); save("evq", evq); }
+    } catch (e) {}
+  }
+
   /* Fragebogen-Antworten: pro Frage gewinnt der neuere Zeitstempel – so überschreibt ein anderes Gerät mit altem Stand nie Antworten. */
   function mergeAnt(ziel, r) {
     let changed = false;
     if (!r || !r.a) return false;
     Object.entries(r.a).forEach(([id, x]) => { const l = ziel.a[id]; if (!l || (x.t || 0) > (l.t || 0)) { ziel.a[id] = x; changed = true; } });
     if ((r.sent || 0) > (ziel.sent || 0)) { ziel.sent = r.sent; changed = true; }
+    if (r.gelesen && (!ziel.gelesen || r.gelesen < ziel.gelesen)) { ziel.gelesen = r.gelesen; changed = true; }   // Brief: erstes Öffnen
     return changed;
   }
   const mergeFragen = r => mergeAnt(fragen, r);
@@ -535,6 +571,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (rf.data && mergeFbb(rf.data.fbb)) { mem.fbb = fbb; try { localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); } catch (e) {} }
       if (rf.data && mergeFbb(rf.data.kfb, kfb)) { mem.kfb = kfb; try { localStorage.setItem(PFX + "kfb", JSON.stringify(kfb)); } catch (e) {} }
       const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief, fbb, kfb }, updated_at: new Date().toISOString() });
+      evFlush();
       return !error;
     } catch (e) { return false; }
   }
@@ -576,9 +613,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     await pull();
     pushSoon();
     document.addEventListener("visibilitychange", async () => {
-      if (document.visibilityState === "hidden") pushNow();
+      if (document.visibilityState === "hidden") { kfbFlush(); pushNow(); }
       else {
         if (await pull()) { checkAch(); if (!document.body.classList.contains("reading")) route(); }
+        evFlush(); nbZahl();
         if (new Date(lastCheck).toDateString() !== new Date().toDateString() || Date.now() - lastCheck > 6 * 3600e3) checkLibrary();
       }
     });
@@ -1031,6 +1069,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Sklaven"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
     } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
+      if (istAdmin) h += `<a class="fqcard" href="#/neuigkeiten"><span class="fqi">🔔</span><span><b>Neuigkeiten<span class="nbadge" id="nbBadge" style="${nbUngesehen ? "" : "display:none"}">${nbUngesehen}</span></b><span>Was deine Herrin gelesen, beantwortet oder eingelöst hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (fgLeser) h += `<a class="fqcard" href="#/fragebogenantworten"><span class="fqi">☰</span><span><b>Antworten aus dem Fragebogen</b><span>Was deine Herrin sich wünscht</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (kfbLeser) h += `<a class="fqcard" href="#/kapitelfeedbackantworten"><span class="fqi">¶</span><span><b>Feedback zu den Kapiteln</b><span>Kurzfeedback unter den Kapiteln</span></span><span class="fqgo">Ansehen ›</span></a>`;
       if (fbbLeser) h += `<a class="fqcard" href="#/feedbackantworten"><span class="fqi">✎</span><span><b>Feedback zu den Büchern</b><span>Was am Buchende geantwortet wurde</span></span><span class="fqgo">Ansehen ›</span></a>`;
@@ -1290,6 +1329,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (!b) return;
       if (b.id === "fqSend") {
         fragen.sent = Date.now(); save("fragen", fragen);
+        ereignis("fragebogen", "Deine Herrin hat den Fragebogen abgeschickt");
         fqMsg("Wird gesendet …");
         const ok = navigator.onLine && await pushNow();
         fqMsg(ok ? "Gesendet ✓" : "Offline – wird später übertragen");
@@ -1371,6 +1411,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const box = document.getElementById("br");
     if (!box || !sb) return;
     if (!BR) { loadBrief("brief.json", d => { BR = d; }); return; }
+    if (briefFuer && !brief.gelesen) { brief.gelesen = Date.now(); save("brief", brief); ereignis("brief_gelesen", "Deine Herrin hat deinen Brief geöffnet"); }
     const byF = Object.fromEntries(brItems().map(f => [f.id, f]));
     box.onclick = async e => {
       const b = e.target.closest("button");
@@ -1378,6 +1419,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (document.activeElement && document.activeElement.tagName === "TEXTAREA") document.activeElement.blur();
       if (b.id === "brSend") {
         brief.sent = Date.now(); save("brief", brief);
+        ereignis("brief", "Deine Herrin hat deinen Brief beantwortet");
         const m = document.getElementById("brSave"); m.textContent = "Wird gesendet …";
         const ok = navigator.onLine && await pushNow();
         m.textContent = ok ? "Gesendet ✓" : "Offline – wird später übertragen";
@@ -1447,6 +1489,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (document.activeElement && document.activeElement.tagName === "TEXTAREA") document.activeElement.blur();
       if (b.id === "fbbSend") {
         const x = fbb[id] || (fbb[id] = { a: {} }); x.sent = Date.now(); save("fbb", fbb);
+        ereignis("buchfeedback", `Deine Herrin hat den Feedbackbogen zu „${(byId[id] || {}).title || id}“ abgeschickt`, { buch: id });
         const m = document.getElementById("fbbMsg"); m.textContent = "Wird gesendet …";
         const ok = navigator.onLine && await pushNow();
         m.textContent = ok ? "Danke! Abgeschickt ✓" : "Offline – wird später übertragen";
@@ -1500,7 +1543,15 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Kurzfeedback unter jedem Kapitel ---------- */
   let kfbT = 0;
   const kfbV = (k, q) => ((kfb[k] || {}).a || {})[q] && kfb[k].a[q].v;
-  function kfbSet(k, q, v) { const e = kfb[k] || (kfb[k] = { a: {} }); e.a[q] = { v, t: Date.now() }; save("kfb", kfb); const m = document.getElementById("kfbMsg"); if (m) m.textContent = "Gespeichert ✓"; }
+  const kfbNeu = new Set();
+  function kfbFlush() {
+    kfbNeu.forEach(k => {
+      const [bid, ch] = k.split("/"), st = byId[bid];
+      ereignis("kapitelfeedback", `Deine Herrin hat Feedback zu Kap. ${+ch + 1} von „${st ? st.title : bid}“ gegeben`, { buch: bid, kapitel: +ch });
+    });
+    kfbNeu.clear();
+  }
+  function kfbSet(k, q, v) { kfbNeu.add(k); const e = kfb[k] || (kfb[k] = { a: {} }); e.a[q] = { v, t: Date.now() }; save("kfb", kfb); const m = document.getElementById("kfbMsg"); if (m) m.textContent = "Gespeichert ✓"; }
   function kfbQ(k, f) {
     const v = kfbV(k, f.id);
     if (f.type === "text") return `<h5>${esc(f.q)}</h5><textarea data-kt="${f.id}" maxlength="4000" placeholder="(optional)">${esc(v || "")}</textarea>`;
@@ -1550,6 +1601,99 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       h += `<div class="bant"><h4>${esc(b.band)}</h4>${b.kapitel.map(k => `<details><summary>Kapitel ${k.nr}${k.titel ? " · " + esc(k.titel) : ""}</summary><dl>${k.eintraege.map(x => `<dt>${esc(x.name)} · ${z(x.t)}</dt><dd>${esc(x.text)}</dd>`).join("")}</dl></details>`).join("")}</div>`;
     });
     return h + "</div>";
+  }
+  /* ---------- Neuigkeiten (nur Markus): Ereignisse + Antworten direkt aus Supabase ---------- */
+  let NB = null, nbUngesehen = 0, nbPopup = false;
+  async function nbZahl() {
+    if (!sb || !istAdmin) return;
+    try {
+      const { count } = await sb.from("ereignisse").select("id", { count: "exact", head: true }).is("gesehen_at", null).neq("art", "test");
+      nbUngesehen = count || 0;
+      const el = document.getElementById("nbBadge"); if (el) { el.textContent = nbUngesehen; el.style.display = nbUngesehen ? "" : "none"; }
+      if (nbUngesehen && !nbPopup && !document.body.classList.contains("reading") && !location.hash.startsWith("#/neuigkeiten")) { nbPopup = true; nbPop(); }
+    } catch (e) {}
+  }
+  async function nbPop() {
+    const { data } = await sb.from("ereignisse").select("text, created_at").is("gesehen_at", null).neq("art", "test").order("created_at", { ascending: false }).limit(6);
+    if (!data || !data.length) return;
+    const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
+    sh.innerHTML = `<div class="nbpop"><h4>${data.length === 1 ? "Eine Neuigkeit" : (nbUngesehen > 6 ? nbUngesehen : data.length) + " Neuigkeiten"}</h4><ul>${data.map(x => `<li>${esc(x.text)}</li>`).join("")}</ul>
+      <a class="btn wide" href="#/neuigkeiten">Ansehen</a></div>`;
+    bg.style.display = "block";
+    requestAnimationFrame(() => sh.classList.add("open"));
+    sh.onclick = null;
+  }
+  async function nbLaden() {
+    try {
+      const [ev, pr] = await Promise.all([
+        sb.from("ereignisse").select("*").neq("art", "test").order("created_at", { ascending: false }).limit(150),
+        sb.from("progress").select("user_id, data")]);
+      if (ev.error) throw ev.error;
+      if (!BR) { try { const r = await sb.storage.from(SBC.bucket).download("brief.json"); if (!r.error) BR = JSON.parse(await r.data.text()); } catch (e) {} }
+      NB = { ev: ev.data || [], daten: Object.fromEntries((pr.data || []).map(r => [r.user_id, r.data || {}])) };
+    } catch (e) { NB = { fehler: true, ev: [], daten: {} }; }
+    if (location.hash.startsWith("#/neuigkeiten")) route();
+    const neu = (NB.ev || []).filter(x => !x.gesehen_at).map(x => x.id);
+    if (neu.length) { await sb.from("ereignisse").update({ gesehen_at: new Date().toISOString() }).in("id", neu); nbUngesehen = 0; }
+  }
+  function nbDetails(e) {
+    const d = (NB.daten || {})[e.user_id] || {}, z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
+    const zeile = (q, v) => `<dt>${esc(q)}</dt><dd>${esc(v)}</dd>`, wert = v => Array.isArray(v) ? v.join(" · ") : v === "keine" ? "keine Szene" : typeof v === "number" ? v + "/10" : String(v);
+    if (e.art === "kapitelfeedback" && KFC) {
+      const a = ((d.kfb || {})[e.ref.buch + "/" + e.ref.kapitel] || {}).a || {};
+      return KFC.fragen.filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>";
+    }
+    if (e.art === "buchfeedback" && FBC) {
+      const a = ((d.fbb || {})[e.ref.buch] || {}).a || {};
+      return FBC.fragen.filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null && !(Array.isArray(a[f.id].v) && !a[f.id].v.length)).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>";
+    }
+    if (e.art === "brief" || e.art === "brief_gelesen") {
+      const b = d.brief || {}, a = b.a || {};
+      let h = zeile("Brief zuerst geöffnet", z(b.gelesen)) + zeile("Abgeschickt", b.sent ? z(b.sent) : "noch nicht");
+      if (BR) h += brItems().filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q || f.label || f.id, wert(a[f.id].v))).join("");
+      return h;
+    }
+    if (e.art === "fragebogen") return zeile("Abgeschickt", z((d.fragen || {}).sent)) + "<dd>Alle Antworten: Startseite → „Antworten aus dem Fragebogen“ (nach <code>wm.py fragebogen</code>).</dd>";
+    return "";
+  }
+  function viewNeuigkeiten() {
+    let h = header() + '<div class="wrap nb"><div class="sec"><h3>Neuigkeiten</h3></div>';
+    if (!sb || !istAdmin) return h + '<div class="empty">Nicht verfügbar.</div></div>';
+    const an = typeof Notification !== "undefined" && Notification.permission === "granted";
+    h += `<div class="nbpush"><b>Benachrichtigungen</b> ${an ? "sind auf diesem Gerät erlaubt." : "sind auf diesem Gerät noch aus."}<br>
+      <button type="button" class="btn" id="nbEin">${an ? "Gerät neu anmelden" : "Benachrichtigungen einschalten"}</button><button type="button" class="btn ghost" id="nbTest">Test-Nachricht</button>
+      <small id="nbMsg">Du bekommst eine kurze Nachricht, wenn deine Herrin den Brief öffnet oder beantwortet, Feedback gibt oder (später) einen Gutschein einlöst – ohne Inhalte.</small></div>`;
+    if (!NB) return h + '<div class="loading">Lädt …</div></div>';
+    if (NB.fehler) return h + '<div class="empty">Konnte nicht geladen werden.</div></div>';
+    if (!NB.ev.length) h += '<div class="empty">Noch keine Neuigkeiten.</div>';
+    const z = t => new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+    NB.ev.forEach(e => {
+      const det = nbDetails(e);
+      h += `<details class="ev ${e.gesehen_at ? "" : "neu"}"><summary><b>${esc(e.text)}</b><small>${z(e.created_at)}${e.gesehen_at ? "" : ' · <span class="neu">neu</span>'}</small></summary>${det ? `<dl>${det}</dl>` : ""}</details>`;
+    });
+    return h + "</div>";
+  }
+  function b64u(s) { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+  async function pushEin() {
+    const m = document.getElementById("nbMsg");
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) throw new Error("Dieser Browser kann keine Push-Nachrichten empfangen (am besten Chrome auf dem Handy, App über „Zum Startbildschirm“).");
+      m.textContent = "Frage nach Erlaubnis …";
+      if (await Notification.requestPermission() !== "granted") throw new Error("Benachrichtigungen wurden nicht erlaubt (Chrome → Website-Einstellungen → Benachrichtigungen).");
+      const reg = await navigator.serviceWorker.register("sw.js");
+      await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(SBC.vapid) });
+      const j = sub.toJSON();
+      const { error } = await sb.from("push_abos").upsert({ endpoint: j.endpoint, abo: j });
+      if (error) throw error;
+      m.textContent = "Benachrichtigungen sind auf diesem Gerät eingeschaltet ✓ – probier die Test-Nachricht.";
+    } catch (e) { m.textContent = (e && e.message) || "Hat nicht geklappt."; }
+  }
+  async function pushTest() {
+    const m = document.getElementById("nbMsg");
+    const { error } = await sb.from("ereignisse").insert({ art: "test", text: "Test: Benachrichtigungen funktionieren 🌙" });
+    m.textContent = error ? "Test fehlgeschlagen: " + error.message : "Test geschickt – die Nachricht sollte in ein paar Sekunden erscheinen.";
   }
   let FBA = null;
   function viewFeedbackAntw() {
@@ -1726,6 +1870,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let onScroll = null;
   let lastRoute = "", taps = [], sleepT = 0;
   function route() {
+    kfbFlush();
     closeSheet();
     clearInterval(sleepT);
     const fresh = location.hash !== lastRoute;   // echter Seitenwechsel (kein Neuaufbau)
@@ -1748,6 +1893,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "brief") html = viewBrief();
     else if (parts[0] === "briefantworten") html = viewBriefAntw();
     else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
+    else if (parts[0] === "neuigkeiten") html = viewNeuigkeiten();
     else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw();
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
@@ -1794,6 +1940,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (parts[0] === "brief") bindBrief();
     if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
     if (parts[0] === "kapitelfeedbackantworten" && !KFA && sb && kfbLeser) loadBrief("kapitelfeedback_antworten.json", d => { KFA = d; });
+    if (parts[0] === "neuigkeiten" && sb && istAdmin) {
+      on("nbEin", pushEin); on("nbTest", pushTest);
+      if (fresh || !NB) { if (fresh) NB = null; if (!NB) nbLaden(); }
+    }
     if (parts[0] === "feedbackantworten" && !FBA && sb && fbbLeser) loadBrief("feedback_antworten.json", d => { FBA = d; });
     if (parts[0] === "briefantworten" && !BRA && sb && briefLeser) loadBrief("brief_antworten.json", d => { BRA = d; });
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });
@@ -1864,6 +2014,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   /* ---------- Altersabfrage ---------- */
   function gate() {
+    if (sb) { evFlush(); setTimeout(nbZahl, 1200); }     // Ereignis-Warteschlange senden, Neuigkeiten-Zähler (Markus)
     if (user || load("adult", false)) return route();
     app.innerHTML = `<div class="gate"><div class="box">${moonIcon}<h2>${esc(DATA.app.name)}</h2>
       <p>${esc(DATA.app.tagline || "")}<br><br>Diese Geschichten sind ausschließlich für Erwachsene. Bitte bestätige, dass du mindestens 18 Jahre alt bist.</p>

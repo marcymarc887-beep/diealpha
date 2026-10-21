@@ -1,6 +1,6 @@
 /* Wolfsmond – Service Worker: macht die Seite installierbar und hält Hülle, Cover und Icons vor.
    Anfragen an Supabase (Anmeldung, Texte, Fortschritt) und CDNs laufen unverändert durchs Netz. */
-const CACHE = "wolfsmond-v4";
+const CACHE = "wolfsmond-v5";
 const SHELL = ["./", "./index.html", "./lesen.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -26,4 +26,21 @@ self.addEventListener("fetch", e => {
     // Cover und Icons: aus dem Zwischenspeicher, sonst laden (Cover tragen ?v=… bei Änderungen)
     e.respondWith(caches.match(req).then(r => r || fetch(req).then(put)));
   }
+});
+
+/* Push-Nachrichten (seit 21.10.2026, nur Markus' Konto abonniert): Anzeige und Klick → App öffnen */
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Wolfsmond", {
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: d.tag || "wm", data: { url: d.url || "lesen.html" }
+  }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "lesen.html", self.registration.scope).href;
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => {
+    for (const c of cs) if (c.url.includes("lesen.html")) { c.navigate(url).catch(() => {}); return c.focus(); }
+    return clients.openWindow(url);
+  }));
 });

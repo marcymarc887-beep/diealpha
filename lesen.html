@@ -164,6 +164,10 @@ body.reading .tabbar { display: none; }
 .reader[data-theme="sepia"] .btn.ghost, .reader[data-theme="hell"] .btn.ghost { background: rgba(0,0,0,.07); color: var(--rfg); }
 
 /* ---------- Einstellungs-Sheet ---------- */
+.reader .txt .gl { text-decoration: underline dotted rgba(232,180,79,.75); text-decoration-thickness: 1.5px; text-underline-offset: .22em; cursor: pointer; }
+.glk { position: fixed; z-index: 55; max-width: min(300px, calc(100vw - 32px)); background: #f6edd6; color: #3a2e1c; border-radius: 3px 3px 10px 3px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.35); padding: 11px 14px 12px; font: 14px/1.5 Literata, Georgia, serif; transform: rotate(-.6deg); border-top: 3px solid #e8b44f; }
+.glk b { display: block; font-family: Inter, sans-serif; font-size: 12px; letter-spacing: .5px; text-transform: uppercase; color: #9a6b12; margin-bottom: 3px; }
 .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 60; display: none; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; background: var(--bg2); border-radius: 18px 18px 0 0;
   padding: 18px 18px calc(22px + var(--safe-b)); transform: translateY(105%); transition: transform .25s; max-width: 760px; margin: 0 auto; }
@@ -2159,7 +2163,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         <button data-th="hell" class="${prefs.theme === "hell" ? "on" : ""}"><span class="sw" style="background:#fbfaf8"></span>Hell</button></div>
       <h4>Schrift</h4><div class="seg">
         <button data-ff="serif" class="${prefs.font === "serif" ? "on" : ""}" style="font-family:Literata,serif">Buch</button>
-        <button data-ff="sans" class="${prefs.font === "sans" ? "on" : ""}">Modern</button></div>`;
+        <button data-ff="sans" class="${prefs.font === "sans" ? "on" : ""}">Modern</button></div>
+      <h4>Begriffe erklären</h4><div class="seg">
+        <button data-gl="1" class="${prefs.glossar !== false ? "on" : ""}">An</button>
+        <button data-gl="0" class="${prefs.glossar === false ? "on" : ""}">Aus</button></div>`;
     bg.style.display = "block";
     requestAnimationFrame(() => sh.classList.add("open"));
     sh.onclick = e => {
@@ -2167,12 +2174,62 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (b.dataset.fs) prefs.fs = +b.dataset.fs;
       if (b.dataset.th) prefs.theme = b.dataset.th;
       if (b.dataset.ff) prefs.font = b.dataset.ff;
+      if (b.dataset.gl) { prefs.glossar = b.dataset.gl === "1"; glossMark(); }
       save("prefs", prefs);
       const r = document.getElementById("reader");
       if (r) { r.dataset.theme = prefs.theme; r.dataset.font = prefs.font; r.style.setProperty("--fs", prefs.fs + "px"); }
       openSheet();
     };
   }
+  /* ---------- Glossar: erstes Vorkommen je Kapitel dezent markiert, Tipp zeigt eine Notizkarte ---------- */
+  let glossSt = null;
+  function glossClose() { document.querySelectorAll(".glk").forEach(k => k.remove()); }
+  function glossMark(st) {
+    if (st !== undefined) glossSt = st;
+    const txt = document.querySelector("#reader .txt");
+    glossClose();
+    if (!txt) return;
+    txt.querySelectorAll("span.gl").forEach(sp => sp.replaceWith(document.createTextNode(sp.textContent)));
+    txt.normalize();
+    const gl = glossSt && glossSt.glossar;
+    if (!gl || prefs.glossar === false) return;
+    const rx = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const W = "A-Za-zÄÖÜäöüßÀ-ÿ";
+    gl.forEach((g, i) => {
+      const re = new RegExp(`(^|[^${W}])(${g.v.slice().sort((a, b) => b.length - a.length).map(rx).join("|")})(?![${W}])`);
+      const tw = document.createTreeWalker(txt, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = tw.nextNode())) {
+        if (n.parentNode.closest(".gl, .mh")) continue;
+        const m = re.exec(n.nodeValue);
+        if (!m) continue;
+        const start = m.index + m[1].length, rest = n.splitText(start);
+        rest.splitText(m[2].length);
+        const sp = document.createElement("span");
+        sp.className = "gl"; sp.dataset.g = i; sp.textContent = rest.nodeValue;
+        rest.replaceWith(sp);
+        break;
+      }
+    });
+    txt.onclick = e => {
+      const sp = e.target.closest(".gl");
+      const offen = document.querySelector(".glk");
+      glossClose();
+      if (!sp || (offen && offen.dataset.g === sp.dataset.g)) return;
+      e.stopPropagation();
+      const g = glossSt.glossar[+sp.dataset.g], k = document.createElement("div");
+      k.className = "glk"; k.dataset.g = sp.dataset.g;
+      k.innerHTML = `<b>${esc(g.b)}</b>${esc(g.e)}`;
+      document.body.appendChild(k);
+      const r = sp.getBoundingClientRect(), w = k.offsetWidth;
+      k.style.left = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 16)) + "px";
+      const unten = r.bottom + 8 + k.offsetHeight < innerHeight;
+      k.style.top = (unten ? r.bottom + 8 : Math.max(8, r.top - 8 - k.offsetHeight)) + "px";
+    };
+  }
+  document.addEventListener("click", e => { if (!e.target.closest(".gl, .glk")) glossClose(); });
+  addEventListener("scroll", () => { if (document.querySelector(".glk")) glossClose(); }, { passive: true, capture: true });
+
   function closeSheet() { document.getElementById("sheet").classList.remove("open"); document.getElementById("sheetBg").style.display = "none"; }
   document.getElementById("sheetBg").onclick = closeSheet;
 
@@ -2309,6 +2366,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       progress[id] = Object.assign({ read: [] }, prev, prev && prev.done && !prev.re ? { t: Date.now() } : { ch, pos: restore, t: Date.now() });
       save("progress", progress);
       document.getElementById("aa").onclick = openSheet;
+      glossMark(byId[id]);
       on("nextch", () => markRead(id, ch));
       on("lastch", () => markRead(id, ch));
       on("finish", () => finishBook(id, ch));

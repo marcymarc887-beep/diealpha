@@ -388,6 +388,9 @@ body.reading .tabbar { display: none; }
 .gs .gst { margin-top: 10px; font-size: 13px; color: var(--muted); }
 .gs .gst b { color: #7fd18b; }
 .gs .btn { padding: 9px 16px; font-size: 14px; margin-top: 6px; }
+.gs .gwahl { display: grid; gap: 8px; margin: 8px 0 4px; }
+.gs .gopt { font: inherit; font-size: 14px; text-align: left; color: var(--text); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(232,180,79,.5); background: rgba(255,255,255,.04); }
+.gs .gopt.on { background: var(--accent); color: #1a1206; font-weight: 600; }
 .gs.weg { opacity: .7; }
 .gs.zu { opacity: .55; border-style: dotted; }
 .gspop { text-align: center; }
@@ -1744,8 +1747,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const gsSichtbar = !!user && (istAdmin || !!GSC.sichtbar);
   let GS = null;
   const BED_TEXT = b => !b ? "sofort" : /^serie:(\d+)$/.test(b) ? `${b.split(":")[1]} Tage am Stück gelesen` : b === "buch_an_einem_tag" ? "ein Buch an einem Tag gelesen"
-    : /^buecher:(\d+)$/.test(b) ? `${b.split(":")[1]} Bücher gelesen` : /^ach:/.test(b) ? `Erfolg „${(((DATA.app.achievements || []).find(a => a.id === b.slice(4)) || {}).title || b.slice(4))}“` : b;
+    : /^buecher:(\d+)$/.test(b) ? `${b.split(":")[1]} Bücher gelesen` : /^reihe:/.test(b) ? `die Reihe „${esc((REIHE_VON(b) || {}).titel || b.slice(6))}“ ganz gelesen` : /^ach:/.test(b) ? `Erfolg „${(((DATA.app.achievements || []).find(a => a.id === b.slice(4)) || {}).title || b.slice(4))}“` : b;
+  const REIHE_VON = b => (DATA.app.reihen || []).find(r => r.id === b.slice(6));
+  const reiheGelesen = r => !!r && !!r.abgeschlossen && r.baende.length > 0 && r.baende.every(nr => { const st = DATA.stories.find(x => x.nr === nr); return st && isDone(st); });
   function gsErfuellt(b) {
+    if (/^reihe:/.test(b)) return reiheGelesen(REIHE_VON(b));       // Reihe abgeschlossen UND alle Bände gelesen
     const st = readStats();
     if (/^serie:\d+$/.test(b)) return st.streak >= +b.split(":")[1];
     if (b === "buch_an_einem_tag") return !!st.oneDay;
@@ -1759,7 +1765,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const { data, error } = await sb.rpc("gutscheine_bedingungen");
       if (error || !data) return;
       let neu = 0;
-      for (const g of data) if (gsErfuellt(g.bedingung)) { const r = await sb.rpc("gutschein_freischalten", { g: g.id }); if (r.data === "ok") neu++; }
+      for (const g of data) if (gsErfuellt(g.bedingung)) {
+        const rh = /^reihe:/.test(g.bedingung) ? REIHE_VON(g.bedingung) : null;
+        const r = await sb.rpc("gutschein_freischalten", { g: g.id, b: rh ? rh.baende.length : null });
+        if (r.data === "ok") neu++;
+      }
       if (neu) gsPop(neu);
     } catch (e) {}
   }
@@ -1770,11 +1780,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     requestAnimationFrame(() => sh.classList.add("open"));
     sh.onclick = null;
   }
+  let GST = [], GSTUFEN = [];
   async function gsLaden() {
     try {
       const { data, error } = await sb.from("gutscheine").select("*").order("quelle", { ascending: false }).order("sortierung");
       if (error) throw error;
       GS = data || [];
+      if (istAdmin) { const st = await sb.from("gutschein_stufen").select("*").order("stufe"); GSTUFEN = st.data || []; GST = []; }
+      else { const t = await sb.rpc("gutscheine_bedingungen"); GST = t.data || []; }     // gesperrte als Teaser (ohne Inhalt)
     } catch (e) { GS = { fehler: true }; }
     if (location.hash.startsWith("#/gutscheine")) route();
   }
@@ -1786,14 +1799,25 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (GS.fehler) return h + `<div class="empty">${istAdmin ? "Das Gutscheinheft ist in der Datenbank noch nicht eingerichtet (00_Werkstatt/tools/sql/gutscheine.sql, braucht den Token)." : "Konnte nicht geladen werden."}</div></div>`;
     if (!GS.length) h += '<div class="empty">Noch keine Gutscheine.</div>';
     const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "";
-    GS.forEach(g => {
-      const zu = !g.freigeschaltet_at, weg = !!g.eingeloest_at;
-      h += `<div class="gs ${zu ? "zu" : weg ? "weg" : ""}" data-g="${esc(g.id)}"><div class="gk">${g.quelle === "advent" ? "Adventskalender · Türchen " + esc(g.id.split(":")[1]) : g.blanko ? "Blankogutschein" : "Gutschein"}</div>
+    const stufeFuer = n => GSTUFEN.find(x => x.bis == null || x.bis >= n);
+    const teaser = g => /^reihe:/.test(g.bedingung || "")
+      ? `<div class="gi">🔒 Wenn du „${esc((REIHE_VON(g.bedingung) || {}).titel || "")}“ ganz gelesen hast … je länger die Reihe, desto größer die Belohnung.</div>`
+        + (istAdmin ? (() => { const r = REIHE_VON(g.bedingung), st = r && stufeFuer(r.baende.length); return st ? `<div class="gst">Vorschau (Markus): Stand jetzt ${r.baende.length} Bände → Stufe ${st.stufe} „${esc(st.titel)}“: ${esc((st.optionen || []).join(" · oder · "))}${r.abgeschlossen ? " · Reihe abgeschlossen" : " · Reihe noch offen"}</div>` : ""; })() : "")
+      : `<div class="gi">🔒 ${esc(BED_TEXT(g.bedingung))}</div>`;
+    const liste = (GS || []).filter(g => g.freigeschaltet_at || istAdmin).concat(GST.map(t => Object.assign({ teaser: true }, t)));
+    liste.sort((a, b) => (!!a.freigeschaltet_at === !!b.freigeschaltet_at ? 0 : a.freigeschaltet_at ? -1 : 1));
+    liste.forEach(g => {
+      if (g.teaser || (!g.freigeschaltet_at && (/^reihe:/.test(g.bedingung || "") || !istAdmin))) {
+        h += `<div class="gs zu"><div class="gk">${/^reihe:/.test(g.bedingung || "") ? "Reihen-Gutschein" : "Gutschein"} · gesperrt</div><h3>${esc(/^reihe:/.test(g.bedingung || "") ? (REIHE_VON(g.bedingung) || {}).titel || g.titel : g.titel)}</h3>${teaser(g)}</div>`;
+        return;
+      }
+      const zu = !g.freigeschaltet_at, weg = !!g.eingeloest_at, wahl = Array.isArray(g.optionen) && g.optionen.length > 1;
+      h += `<div class="gs ${zu ? "zu" : weg ? "weg" : ""}" data-g="${esc(g.id)}"><div class="gk">${g.quelle === "advent" ? "Adventskalender · Türchen " + esc(g.id.split(":")[1]) : g.blanko ? "Blankogutschein" : /^reihe:/.test(g.id) ? "Reihen-Gutschein" : "Gutschein"}</div>
         <h3>${esc(g.titel)}</h3><div class="gi">${g.inhalt}</div>
         <div class="gst">${zu ? `🔒 gesperrt – ${esc(BED_TEXT(g.bedingung))}`
           : g.erledigt_at ? `<b>erledigt ✓</b> · eingelöst am ${z(g.eingeloest_at)}${g.wunsch ? `<br>Wunsch: „${esc(g.wunsch)}“` : ""}`
           : weg ? `eingelöst am ${z(g.eingeloest_at)}${g.wunsch ? `<br>Wunsch: „${esc(g.wunsch)}“` : ""}${istAdmin ? `<br><button type="button" class="btn" data-erl="${esc(g.id)}">Erledigt</button>` : " – dein Sklave weiß Bescheid."}`
-          : `${g.blanko ? '<textarea placeholder="Was wünschst du dir?" maxlength="2000"></textarea>' : ""}<button type="button" class="btn" data-ein="${esc(g.id)}">Einlösen</button>`}</div></div>`;
+          : `${g.blanko ? '<textarea placeholder="Was wünschst du dir?" maxlength="2000"></textarea>' : ""}${wahl ? `<div class="gwahl">${g.optionen.map(o => `<button type="button" class="gopt" data-o="${esc(o)}">${esc(o)}</button>`).join("")}</div>` : ""}<button type="button" class="btn" data-ein="${esc(g.id)}">Einlösen</button>`}</div></div>`;
     });
     return h + "</div>";
   }
@@ -1801,12 +1825,16 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const box = document.querySelector(".gsh");
     if (!box || !Array.isArray(GS)) return;
     box.onclick = async e => {
+      const op = e.target.closest(".gopt");
+      if (op) { op.parentNode.querySelectorAll(".gopt").forEach(x => x.classList.toggle("on", x === op)); return; }
       const er = e.target.closest("[data-erl]");
       if (er) { await sb.rpc("gutschein_erledigt", { g: er.dataset.erl }); GS = null; gsLaden(); return; }
       const b = e.target.closest("[data-ein]");
       if (!b) return;
-      const card = b.closest(".gs"), ta = card.querySelector("textarea"), w = ta ? ta.value.trim() : null;
+      const card = b.closest(".gs"), ta = card.querySelector("textarea"), wahl = card.querySelector(".gwahl"), sel = wahl && wahl.querySelector(".gopt.on");
+      const w = ta ? ta.value.trim() : sel ? sel.dataset.o : null;
       if (ta && !w) { ta.focus(); ta.placeholder = "Schreib hinein, was du dir wünschst …"; return; }
+      if (wahl && !sel) { card.querySelector(".gst").insertAdjacentHTML("afterbegin", "<div>Such dir erst eine Möglichkeit aus.</div>"); return; }
       if (!confirm("Diesen Gutschein jetzt einlösen?")) return;
       const { data, error } = await sb.rpc("gutschein_einloesen", { g: b.dataset.ein, w });
       const st = card.querySelector(".gst");

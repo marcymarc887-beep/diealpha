@@ -372,6 +372,29 @@ body.reading .tabbar { display: none; }
 .advsheet .inh p { margin: 0 0 .8em; }
 .advsheet .gut { margin-top: 12px; padding: 12px; border: 1px dashed var(--accent); border-radius: 12px; text-align: center; font-size: 14px; }
 
+/* Gutscheinheft (seit 21.10.2026) */
+.gsh h2 { font-family: "Cormorant Garamond", serif; font-size: 32px; color: var(--accent); text-align: center; margin: 6px 0 2px; }
+.gsh .gsub { text-align: center; color: var(--muted); font-style: italic; margin: 0 0 16px; }
+.gsh .gstest { background: rgba(194,52,77,.18); border: 1px solid var(--accent2); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
+.gs { position: relative; margin: 0 0 14px; padding: 16px 16px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(232,180,79,.13), rgba(194,52,77,.10)), var(--card); border: 1.5px dashed rgba(232,180,79,.7); }
+.gs::before, .gs::after { content: ""; position: absolute; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--bg); border: 1.5px dashed rgba(232,180,79,.7); }
+.gs::before { left: -10px; clip-path: inset(0 0 0 50%); }
+.gs::after { right: -10px; clip-path: inset(0 50% 0 0); }
+.gs .gk { font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--accent2); }
+.gs h3 { font-family: "Cormorant Garamond", serif; font-size: 23px; color: var(--accent); margin: 2px 0 8px; }
+.gs .gi { font-size: 15px; line-height: 1.5; }
+.gs .gi p { margin: 0 0 .6em; }
+.gs textarea { display: block; width: 100%; box-sizing: border-box; min-height: 70px; margin: 8px 0; padding: 10px 12px; font: inherit; font-size: 15px; color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 10px; }
+.gs .gst { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.gs .gst b { color: #7fd18b; }
+.gs .btn { padding: 9px 16px; font-size: 14px; margin-top: 6px; }
+.gs.weg { opacity: .7; }
+.gs.zu { opacity: .55; border-style: dotted; }
+.gspop { text-align: center; }
+.gspop .gstern { font-size: 40px; }
+.gspop h3 { font-family: "Cormorant Garamond", serif; font-size: 28px; color: var(--accent); margin: 4px 0 6px; }
+.gspop p { color: var(--muted); margin: 0 0 14px; }
+
 /* Kalenderbild mit Klickflächen (4×6) */
 .adv .bildkal { position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.7); }
 .adv .bildkal img { display: block; width: 100%; height: auto; }
@@ -675,7 +698,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (document.visibilityState === "hidden") { kfbFlush(); pushNow(); }
       else {
         if (await pull()) { checkAch(); if (!document.body.classList.contains("reading")) route(); }
-        evFlush(); nbZahl();
+        evFlush(); nbZahl(); gsPruefen();
         if (new Date(lastCheck).toDateString() !== new Date().toDateString() || Date.now() - lastCheck > 6 * 3600e3) checkLibrary();
       }
     });
@@ -1147,6 +1170,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const all = arrange(einzel);
     h += `<div class="sec"><h3>${REIHEN.length ? "Einzelne Geschichten" : "Alle Geschichten"}</h3><span>${all.length} von ${einzel.length}</span></div>${tools(true)}` +
       (all.length ? gridHtml(all) : '<div class="empty">Keine Geschichten in dieser Auswahl.</div>');
+    if (sb && gsSichtbar) h += `<a class="fqcard" href="#/gutscheine" style="margin-top:22px"><span class="fqi">🎁</span><span><b>${istAdmin ? "Gutscheinheft (Vorschau)" : "Meine Gutscheine"}</b><span>${istAdmin ? "Testmodus: alle Gutscheine + Erledigt" : "Einlösen, wann immer du willst"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
     if (ARCHIV.length) {
       const arc = ARCHIV.slice().sort((a, b) => (a.nr || 0) - (b.nr || 0));
       h += `<details class="fold" id="arcFold" ${prefs.arcOpen ? "open" : ""}><summary class="sec"><h3>Archiv <span>(${arc.length} · nur für dich sichtbar)</span></h3><span class="chev">▾</span></summary><div class="grid">${arc.map(s => tile(s)).join("")}</div></details>`;
@@ -1715,6 +1739,82 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const adventSichtbar = !!user && (istAdmin || berlin.m === 12 || (berlin.m === 1 && berlin.d <= 6));
   const ADV_ORD = [7, 15, 2, 21, 11, 4, 18, 9, 1, 13, 23, 6, 16, 3, 20, 10, 24, 8, 14, 5, 19, 12, 22, 17];   // wild verteilt wie ein echter Kalender
   let ADV = null;
+  /* Gutscheinheft (Supabase-Tabelle gutscheine): Heft- und Adventsgutscheine, ein Datensatz je Gutschein */
+  const GSC = DATA.app.gutscheine || {};
+  const gsSichtbar = !!user && (istAdmin || !!GSC.sichtbar);
+  let GS = null;
+  const BED_TEXT = b => !b ? "sofort" : /^serie:(\d+)$/.test(b) ? `${b.split(":")[1]} Tage am Stück gelesen` : b === "buch_an_einem_tag" ? "ein Buch an einem Tag gelesen"
+    : /^buecher:(\d+)$/.test(b) ? `${b.split(":")[1]} Bücher gelesen` : /^ach:/.test(b) ? `Erfolg „${(((DATA.app.achievements || []).find(a => a.id === b.slice(4)) || {}).title || b.slice(4))}“` : b;
+  function gsErfuellt(b) {
+    const st = readStats();
+    if (/^serie:\d+$/.test(b)) return st.streak >= +b.split(":")[1];
+    if (b === "buch_an_einem_tag") return !!st.oneDay;
+    if (/^buecher:\d+$/.test(b)) return st.books >= +b.split(":")[1];
+    if (/^ach:/.test(b)) return !!ach[b.slice(4)];
+    return false;
+  }
+  async function gsPruefen() {                   // Freischalt-Bedingungen (Leseverlauf/Erfolge) prüfen → „Neuer Gutschein!“
+    if (!sb || istAdmin || !GSC.sichtbar) return;
+    try {
+      const { data, error } = await sb.rpc("gutscheine_bedingungen");
+      if (error || !data) return;
+      let neu = 0;
+      for (const g of data) if (gsErfuellt(g.bedingung)) { const r = await sb.rpc("gutschein_freischalten", { g: g.id }); if (r.data === "ok") neu++; }
+      if (neu) gsPop(neu);
+    } catch (e) {}
+  }
+  function gsPop(n) {
+    const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
+    sh.innerHTML = `<div class="gspop"><div class="gstern">🎁</div><h3>${n === 1 ? "Neuer Gutschein!" : n + " neue Gutscheine!"}</h3><p>Fürs Lesen verdient – er liegt in deinem Gutscheinheft.</p><a class="btn wide" href="#/gutscheine">Ansehen</a></div>`;
+    bg.style.display = "block";
+    requestAnimationFrame(() => sh.classList.add("open"));
+    sh.onclick = null;
+  }
+  async function gsLaden() {
+    try {
+      const { data, error } = await sb.from("gutscheine").select("*").order("quelle", { ascending: false }).order("sortierung");
+      if (error) throw error;
+      GS = data || [];
+    } catch (e) { GS = { fehler: true }; }
+    if (location.hash.startsWith("#/gutscheine")) route();
+  }
+  function viewGutscheine() {
+    let h = header() + '<div class="wrap gsh"><h2>Mein Gutscheinheft</h2><p class="gsub">Einlösen, wann immer du willst</p>';
+    if (!sb || !gsSichtbar) return h + '<div class="empty">Noch nicht verfügbar.</div></div>';
+    if (istAdmin) h += '<div class="gstest"><b>Testmodus:</b> Du siehst alle Gutscheine, auch gesperrte. Dein Einlösen zählt nicht. Für deine Herrin sichtbar erst mit app.gutscheine.sichtbar = true.</div>';
+    if (!GS) return h + '<div class="loading">Lädt …</div></div>';
+    if (GS.fehler) return h + `<div class="empty">${istAdmin ? "Das Gutscheinheft ist in der Datenbank noch nicht eingerichtet (00_Werkstatt/tools/sql/gutscheine.sql, braucht den Token)." : "Konnte nicht geladen werden."}</div></div>`;
+    if (!GS.length) h += '<div class="empty">Noch keine Gutscheine.</div>';
+    const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "";
+    GS.forEach(g => {
+      const zu = !g.freigeschaltet_at, weg = !!g.eingeloest_at;
+      h += `<div class="gs ${zu ? "zu" : weg ? "weg" : ""}" data-g="${esc(g.id)}"><div class="gk">${g.quelle === "advent" ? "Adventskalender · Türchen " + esc(g.id.split(":")[1]) : g.blanko ? "Blankogutschein" : "Gutschein"}</div>
+        <h3>${esc(g.titel)}</h3><div class="gi">${g.inhalt}</div>
+        <div class="gst">${zu ? `🔒 gesperrt – ${esc(BED_TEXT(g.bedingung))}`
+          : g.erledigt_at ? `<b>erledigt ✓</b> · eingelöst am ${z(g.eingeloest_at)}${g.wunsch ? `<br>Wunsch: „${esc(g.wunsch)}“` : ""}`
+          : weg ? `eingelöst am ${z(g.eingeloest_at)}${g.wunsch ? `<br>Wunsch: „${esc(g.wunsch)}“` : ""}${istAdmin ? `<br><button type="button" class="btn" data-erl="${esc(g.id)}">Erledigt</button>` : " – dein Sklave weiß Bescheid."}`
+          : `${g.blanko ? '<textarea placeholder="Was wünschst du dir?" maxlength="2000"></textarea>' : ""}<button type="button" class="btn" data-ein="${esc(g.id)}">Einlösen</button>`}</div></div>`;
+    });
+    return h + "</div>";
+  }
+  function gsBind() {
+    const box = document.querySelector(".gsh");
+    if (!box || !Array.isArray(GS)) return;
+    box.onclick = async e => {
+      const er = e.target.closest("[data-erl]");
+      if (er) { await sb.rpc("gutschein_erledigt", { g: er.dataset.erl }); GS = null; gsLaden(); return; }
+      const b = e.target.closest("[data-ein]");
+      if (!b) return;
+      const card = b.closest(".gs"), ta = card.querySelector("textarea"), w = ta ? ta.value.trim() : null;
+      if (ta && !w) { ta.focus(); ta.placeholder = "Schreib hinein, was du dir wünschst …"; return; }
+      if (!confirm("Diesen Gutschein jetzt einlösen?")) return;
+      const { data, error } = await sb.rpc("gutschein_einloesen", { g: b.dataset.ein, w });
+      const st = card.querySelector(".gst");
+      if (error) { st.textContent = "Hat nicht geklappt – bitte später noch einmal."; return; }
+      st.innerHTML = data === "test" ? "Testmodus: In deinem Konto wird nichts eingelöst." : data === "leer" ? "Bitte schreib erst hinein, was du dir wünschst." : "Eingelöst ✓ – dein Sklave weiß Bescheid.";
+      if (data === "ok") { GS = null; setTimeout(gsLaden, 1500); }
+    };
+  }
   async function advLaden() {
     try {
       const { data, error } = await sb.from("advent").select("*").order("tag");
@@ -1755,17 +1855,19 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
     const gut = r.art === "Gutschein" ? `<div class="gut" id="advGut">${r.erledigt_at ? "Erledigt ✓ – eingelöst am " + advZ(r.eingeloest_at)
       : r.eingeloest_at ? "Eingelöst am " + advZ(r.eingeloest_at) + " – dein Sklave weiß Bescheid."
-      : `${r.gueltig ? "Gültig: " + esc(r.gueltig) + "<br>" : ""}<button type="button" class="btn" id="advEin" style="margin-top:8px">Gutschein einlösen</button>`}</div>` : "";
+      : `${r.gueltig ? "Gültig: " + esc(r.gueltig) + "<br>" : ""}${r.blanko ? '<textarea id="advWunsch" placeholder="Was wünschst du dir?" maxlength="2000" style="display:block;width:100%;box-sizing:border-box;min-height:70px;margin:8px 0;padding:10px;font:inherit;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text)"></textarea>' : ""}<button type="button" class="btn" id="advEin" style="margin-top:8px">Gutschein einlösen</button>`}</div>` : "";
     sh.innerHTML = `<div class="advsheet"><div class="art">Türchen ${t}${r.art !== "leer" ? " · " + esc(r.art) : ""}</div><h3>${esc(r.titel)}</h3><div class="inh">${r.inhalt}</div>${gut}</div>`;
     bg.style.display = "block";
     requestAnimationFrame(() => sh.classList.add("open"));
     sh.onclick = async e => {
       if (!e.target.closest("#advEin")) return;
+      const wf = document.getElementById("advWunsch"), w = wf ? wf.value.trim() : null;
+      if (wf && !w) { wf.focus(); wf.placeholder = "Schreib hinein, was du dir wünschst …"; return; }
       if (!confirm("Diesen Gutschein jetzt einlösen?")) return;
-      const { data, error } = await sb.rpc("advent_einloesen", { t });
+      const { data, error } = await sb.rpc("advent_einloesen", { t, w });
       const g = document.getElementById("advGut");
       if (error) { g.textContent = "Hat nicht geklappt – bitte später noch einmal."; return; }
-      g.textContent = data === "test" ? "Testmodus: In deinem Konto wird nichts eingelöst." : "Eingelöst ✓ – dein Sklave weiß Bescheid.";
+      g.textContent = data === "test" ? "Testmodus: In deinem Konto wird nichts eingelöst." : data === "leer" ? "Bitte schreib erst hinein, was du dir wünschst." : "Eingelöst ✓ – dein Sklave weiß Bescheid.";
       if (data === "ok" || data === "schon") { r.eingeloest_at = r.eingeloest_at || new Date().toISOString(); }
     };
     if (!istAdmin && !r.geoeffnet_at) { r.geoeffnet_at = new Date().toISOString(); sb.rpc("advent_oeffnen", { t }).then(() => {}, () => {}); }
@@ -1796,14 +1898,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const { data } = await sb.from("ereignisse").select("text, created_at, art, ref").is("gesehen_at", null).neq("art", "test").order("created_at", { ascending: false }).limit(6);
     if (!data || !data.length) return;
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
-    sh.innerHTML = `<div class="nbpop"><h4>${data.length === 1 ? "Eine Neuigkeit" : (nbUngesehen > 6 ? nbUngesehen : data.length) + " Neuigkeiten"}</h4><ul>${data.map(x => `<li>${esc(x.text)}${x.art === "gutschein" && x.ref && x.ref.tag ? ` <button type="button" class="btn" data-erl="${x.ref.tag}" style="padding:4px 10px;font-size:12px">Erledigt</button>` : ""}</li>`).join("")}</ul>
+    sh.innerHTML = `<div class="nbpop"><h4>${data.length === 1 ? "Eine Neuigkeit" : (nbUngesehen > 6 ? nbUngesehen : data.length) + " Neuigkeiten"}</h4><ul>${data.map(x => `<li>${esc(x.text)}${x.art === "gutschein" && x.ref && x.ref.wunsch ? `<br><i>„${esc(x.ref.wunsch)}“</i>` : ""}${x.art === "gutschein" && x.ref && (x.ref.id || x.ref.tag) ? ` <button type="button" class="btn" data-erl="${esc(x.ref.id || "advent:" + x.ref.tag)}" style="padding:4px 10px;font-size:12px">Erledigt</button>` : ""}</li>`).join("")}</ul>
       <a class="btn wide" href="#/neuigkeiten">Ansehen</a></div>`;
     bg.style.display = "block";
     requestAnimationFrame(() => sh.classList.add("open"));
     sh.onclick = async e => {
       const b = e.target.closest("[data-erl]");
       if (!b) return;
-      await sb.rpc("advent_erledigt", { t: +b.dataset.erl });
+      await sb.rpc("gutschein_erledigt", { g: b.dataset.erl });
       b.outerHTML = "<b> ✓ erledigt</b>";
     };
   }
@@ -1838,7 +1940,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (BR) h += brItems().filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q || f.label || f.id, wert(a[f.id].v))).join("");
       return h;
     }
-    if (e.art === "gutschein") return `<dd>Gutschein aus Türchen ${e.ref.tag} – im <a href="#/advent">Adventskalender</a> als „Erledigt“ markieren.</dd>`;
+    if (e.art === "gutschein") return `${e.ref.wunsch ? zeile("Ihr Wunsch", e.ref.wunsch) : ""}<dd>Im <a href="#/gutscheine">Gutscheinheft</a> als „Erledigt“ markieren.</dd>`;
+    if (e.art === "gutschein_neu") return `<dd>Liegt jetzt in ihrem <a href="#/gutscheine">Gutscheinheft</a>.</dd>`;
     if (e.art === "fragebogen") return zeile("Abgeschickt", z((d.fragen || {}).sent)) + "<dd>Alle Antworten: Startseite → „Antworten aus dem Fragebogen“ (nach <code>wm.py fragebogen</code>).</dd>";
     return "";
   }
@@ -2081,6 +2184,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "feedbackantworten") html = viewFeedbackAntw();
     else if (parts[0] === "neuigkeiten") html = viewNeuigkeiten();
     else if (parts[0] === "advent") html = viewAdvent();
+    else if (parts[0] === "gutscheine") html = viewGutscheine();
     else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw(parts[1] ? [parts[1], parts[2]] : null);
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
@@ -2131,6 +2235,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (!KFL) kflLaden();
       else if (parts[1]) { const el = document.getElementById("kk_" + parts[1] + "_" + parts[2]); if (el) setTimeout(() => el.scrollIntoView({ block: "center" }), 50); }
     }
+    if (parts[0] === "gutscheine" && sb && gsSichtbar) { if (fresh) GS = null; if (!GS) gsLaden(); else gsBind(); }
     if (parts[0] === "advent" && sb && adventSichtbar) { if (fresh) ADV = null; if (!ADV) advLaden(); else advBind(); }
     if (parts[0] === "neuigkeiten" && sb && istAdmin) {
       on("nbEin", pushEin); on("nbTest", pushTest);
@@ -2206,7 +2311,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   /* ---------- Altersabfrage ---------- */
   function gate() {
-    if (sb) { evFlush(); setTimeout(nbZahl, 1200); }     // Ereignis-Warteschlange senden, Neuigkeiten-Zähler (Markus)
+    if (sb) { evFlush(); setTimeout(nbZahl, 1200); setTimeout(gsPruefen, 2500); }     // Ereignis-Warteschlange senden, Neuigkeiten-Zähler (Markus)
     if (user || load("adult", false)) return route();
     app.innerHTML = `<div class="gate"><div class="box">${moonIcon}<h2>${esc(DATA.app.name)}</h2>
       <p>${esc(DATA.app.tagline || "")}<br><br>Diese Geschichten sind ausschließlich für Erwachsene. Bitte bestätige, dass du mindestens 18 Jahre alt bist.</p>

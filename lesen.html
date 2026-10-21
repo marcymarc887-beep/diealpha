@@ -596,7 +596,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function save(k, v) {
     if (k === "prefs") v.t = Date.now();
     mem[k] = v; try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {}
-    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief" || k === "fbb" || k === "kfb") pushSoon();
+    if (k === "progress" || k === "prefs" || k === "removed" || k === "ach" || k === "log" || k === "fb" || k === "fragen" || k === "brief" || k === "neuig" || k === "fbb" || k === "kfb") pushSoon();
   }
   let progress = load("progress", {});   // {id: {ch, pos, read:[...], t, done, start, again, re, last}}
   let prefs = load("prefs", { fs: 19, theme: "dunkel", font: "serif" });
@@ -606,6 +606,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let log = load("log", {});
   let fragen = load("fragen", { a: {} });
   let brief = load("brief", { a: {} });
+  let neuig = load("neuig", { a: {} });    // Antworten auf den Text „Neuigkeiten“ (ersetzt den Brief in der App) – seit 21.10.2026
   let fbb = load("fbb", {});
   let kfb = load("kfb", {});               // Kurzfeedback je Kapitel {"buchId/kapitelIndex": {a: {frageId: {v, t}}}} – seit 21.10.2026               // Feedbackbogen je Buch {id: {a: {frageId: {v, t}}, sent}} – seit 20.10.2026    // Antworten im Brief „Für meine Herrin“ {a: {id: {v, t}}, sent} – seit 20.10.2026  // Fragebogen-Antworten {a: {frageId: {v, t}}, sent} – seit 20.10.2026, wird beim Hochladen mit dem Server zusammengeführt             // Lesetagebuch {"JJJJ-MM-TT": {n: gelesene Kapitel, h: [Stunden]}} – seit 13.10.2026
 
@@ -649,13 +650,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!sb) return false;
     clearTimeout(pushT);
     try {
-      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief,fbb:data->fbb,kfb:data->kfb").eq("user_id", user.id).maybeSingle();
+      const rf = await sb.from("progress").select("fragen:data->fragen,brief:data->brief,neuig:data->neuig,fbb:data->fbb,kfb:data->kfb").eq("user_id", user.id).maybeSingle();
       if (rf.error) return false;                       // ohne Serverstand nicht schreiben (Antworten schützen)
       if (rf.data && mergeFragen(rf.data.fragen)) { mem.fragen = fragen; try { localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); } catch (e) {} }
       if (rf.data && mergeAnt(brief, rf.data.brief)) { mem.brief = brief; try { localStorage.setItem(PFX + "brief", JSON.stringify(brief)); } catch (e) {} }
+      if (rf.data && mergeAnt(neuig, rf.data.neuig)) { mem.neuig = neuig; try { localStorage.setItem(PFX + "neuig", JSON.stringify(neuig)); } catch (e) {} }
       if (rf.data && mergeFbb(rf.data.fbb)) { mem.fbb = fbb; try { localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); } catch (e) {} }
       if (rf.data && mergeFbb(rf.data.kfb, kfb)) { mem.kfb = kfb; try { localStorage.setItem(PFX + "kfb", JSON.stringify(kfb)); } catch (e) {} }
-      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief, fbb, kfb }, updated_at: new Date().toISOString() });
+      const { error } = await sb.from("progress").upsert({ user_id: user.id, data: { progress, prefs, removed, ach, log, fb, fragen, brief, neuig, fbb, kfb }, updated_at: new Date().toISOString() });
       evFlush();
       return !error;
     } catch (e) { return false; }
@@ -687,10 +689,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       Object.entries(r.fb || {}).forEach(([id, f]) => { if (!fb[id] || (f.geaendert_am || 0) > (fb[id].geaendert_am || 0)) { fb[id] = f; changed = true; } });
       if (mergeFragen(r.fragen)) changed = true;
       if (mergeAnt(brief, r.brief)) changed = true;
+      if (mergeAnt(neuig, r.neuig)) changed = true;
       if (mergeFbb(r.fbb)) changed = true;
       if (mergeFbb(r.kfb, kfb)) changed = true;
-      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief; mem.fbb = fbb; mem.kfb = kfb;
-      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); localStorage.setItem(PFX + "kfb", JSON.stringify(kfb)); } catch (e) {}
+      mem.progress = progress; mem.prefs = prefs; mem.removed = removed; mem.ach = ach; mem.log = log; mem.fb = fb; mem.fragen = fragen; mem.brief = brief; mem.neuig = neuig; mem.fbb = fbb; mem.kfb = kfb;
+      try { localStorage.setItem(PFX + "progress", JSON.stringify(progress)); localStorage.setItem(PFX + "prefs", JSON.stringify(prefs)); localStorage.setItem(PFX + "removed", JSON.stringify(removed)); localStorage.setItem(PFX + "ach", JSON.stringify(ach)); localStorage.setItem(PFX + "log", JSON.stringify(log)); localStorage.setItem(PFX + "fb", JSON.stringify(fb)); localStorage.setItem(PFX + "fragen", JSON.stringify(fragen)); localStorage.setItem(PFX + "brief", JSON.stringify(brief)); localStorage.setItem(PFX + "neuig", JSON.stringify(neuig)); localStorage.setItem(PFX + "fbb", JSON.stringify(fbb)); localStorage.setItem(PFX + "kfb", JSON.stringify(kfb)); } catch (e) {}
     } catch (e) {}
     return changed;
   }
@@ -1152,7 +1155,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     }
     if (sb && adventSichtbar) h += `<a class="fqcard" href="#/advent"><span class="fqi">🕯</span><span><b>Adventskalender${istAdmin ? " (Vorschau)" : ""}</b><span>${istAdmin ? "Alle Türen im Testmodus + Übersicht" : "Jeden Tag im Dezember ein Türchen"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
     if (sb && briefFuer) {
-      h += `<a class="fqcard" href="#/brief"><span class="fqi">✉︎</span><span><b>Für meine Herrin</b><span>${brief.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : "Ein Brief von deinem Sklaven"}</span></span><span class="fqgo">${brief.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
+      const b = BB(), neu = !b.gelesen;
+      h += `<a class="fqcard" href="#/brief"${neu ? ' style="box-shadow:0 0 26px rgba(232,180,79,.55)"' : ""}><span class="fqi">✉︎</span><span><b>${esc(BC.name || "Für meine Herrin")}${neu ? '<span class="nbadge">Neu für dich</span>' : ""}</b><span>${b.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : neu ? "Etwas Neues von deinem Sklaven – bitte öffnen" : "Von deinem Sklaven"}</span></span><span class="fqgo">${b.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
     } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
       if (istAdmin) h += `<a class="fqcard" href="#/neuigkeiten"><span class="fqi">🔔</span><span><b>Neuigkeiten<span class="nbadge" id="nbBadge" style="${nbUngesehen ? "" : "display:none"}">${nbUngesehen}</span></b><span>Was deine Herrin gelesen, beantwortet oder eingelöst hat</span></span><span class="fqgo">Ansehen ›</span></a>`;
@@ -1461,10 +1465,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
 
   /* ---------- Brief „Für meine Herrin“: Inhalt privat bei Supabase (brief.json), Abfragen mitten im Brief ---------- */
-  let BR = null, BRA = null, brT = 0;
-  const brV = id => (brief.a[id] || {}).v;
-  function brSet(id, v) { brief.a[id] = { v, t: Date.now() }; save("brief", brief); const m = document.getElementById("brSave"); if (m) m.textContent = "Gespeichert ✓"; }
-  function brItems() { return BR ? BR.parts.filter(p => p.type === "q").flatMap(p => p.items) : []; }
+  let BR = null, BRA = null, brT = 0, NBR = null;
+  const BKEY = BC.key || "brief", BB = () => (BKEY === "neuig" ? neuig : brief);     // welcher Text gerade aktiv ist
+  const brV = id => (BB().a[id] || {}).v;
+  function brSet(id, v) { BB().a[id] = { v, t: Date.now() }; save(BKEY, BB()); const m = document.getElementById("brSave"); if (m) m.textContent = "Gespeichert ✓"; }
+  function brItems(doc) { doc = doc || BR; return doc ? doc.parts.filter(p => p.type === "q").flatMap(p => p.items) : []; }
   function brQ(f) {
     const v = brV(f.id);
     if (f.type === "regler") return `<h5>${f.hint ? `<small>${esc(f.hint)}</small>` : ""}</h5><div class="rgl"><small>1</small><input type="range" min="1" max="10" step="1" value="${v || 5}" class="${v ? "" : "unset"}" data-br="${f.id}" aria-label="Regler 1 bis 10"><small>10</small><b>${v || "–"}</b></div>`;
@@ -1474,14 +1479,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return h + `<div class="opts">${f.opts.map((o, i) => `<button type="button" data-bq="${f.id}" data-i="${i}" class="${sel.includes(o) ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
   }
   function brEnd() {
-    return brief.sent ? `<div class="fqdank">Danke, Herrin.</div><p>Abgeschickt am ${new Date(brief.sent).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}. Du kannst alles jederzeit ändern – es speichert sich von selbst.</p><button type="button" class="btn" id="brSend">Erneut abschicken</button>`
+    return BB().sent ? `<div class="fqdank">Danke, Herrin.</div><p>Abgeschickt am ${new Date(BB().sent).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}. Du kannst alles jederzeit ändern – es speichert sich von selbst.</p><button type="button" class="btn" id="brSend">Erneut abschicken</button>`
       : `<button type="button" class="btn" id="brSend">Abschicken</button>`;
   }
   function viewBrief() {
     let h = header() + '<div class="wrap fq brief" id="br">';
     if (!sb) return h + '<div class="empty">Nur in der angemeldeten App.</div></div>';
-    if (!BR) return h + '<div class="loading">Brief wird geöffnet …</div></div>';
-    h += `<div class="paper"><h2>${esc(BR.title)}</h2>${BR.parts.map(p => p.type === "p" ? `<p>${esc(p.text)}</p>`
+    if (!BR) return h + '<div class="loading">Wird geöffnet …</div></div>';
+    h += `<div class="paper"><h2>${esc(BR.title)}</h2>${BR.parts.map(p => p.type === "p" ? `<p>${p.html || esc(p.text)}</p>`
       : `<div class="bq">${p.items.map(f => `<div class="q" id="bq_${f.id}">${brQ(f)}</div>`).join("")}</div>`).join("")}
       <div class="bsend" id="brEnd">${brEnd()}</div><div class="bsend fqsave" id="brSave"></div></div></div>`;
     return h;
@@ -1497,16 +1502,16 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function bindBrief() {
     const box = document.getElementById("br");
     if (!box || !sb) return;
-    if (!BR) { loadBrief("brief.json", d => { BR = d; }); return; }
-    if (briefFuer && !brief.gelesen) { brief.gelesen = Date.now(); save("brief", brief); ereignis("brief_gelesen", "Deine Herrin hat deinen Brief geöffnet"); }
+    if (!BR) { loadBrief(BC.datei || "brief.json", d => { BR = d; }); return; }
+    if (briefFuer && !BB().gelesen) { BB().gelesen = Date.now(); save(BKEY, BB()); ereignis(BKEY + "_gelesen", BC.gelesen || "Deine Herrin hat deinen Brief geöffnet"); route(); return; }
     const byF = Object.fromEntries(brItems().map(f => [f.id, f]));
     box.onclick = async e => {
       const b = e.target.closest("button");
       if (!b) return;
       if (document.activeElement && document.activeElement.tagName === "TEXTAREA") document.activeElement.blur();
       if (b.id === "brSend") {
-        brief.sent = Date.now(); save("brief", brief);
-        ereignis("brief", "Deine Herrin hat deinen Brief beantwortet");
+        BB().sent = Date.now(); save(BKEY, BB());
+        ereignis(BKEY, BC.gesendet || "Deine Herrin hat deinen Brief beantwortet");
         const m = document.getElementById("brSave"); m.textContent = "Wird gesendet …";
         const ok = navigator.onLine && await pushNow();
         m.textContent = ok ? "Gesendet ✓" : "Offline – wird später übertragen";
@@ -1944,6 +1949,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         sb.from("progress").select("user_id, data")]);
       if (ev.error) throw ev.error;
       if (!BR) { try { const r = await sb.storage.from(SBC.bucket).download("brief.json"); if (!r.error) BR = JSON.parse(await r.data.text()); } catch (e) {} }
+      if (!NBR) { try { const r = await sb.storage.from(SBC.bucket).download("neuigkeiten.json"); if (!r.error) NBR = JSON.parse(await r.data.text()); } catch (e) {} }
       NB = { ev: ev.data || [], daten: Object.fromEntries((pr.data || []).map(r => [r.user_id, r.data || {}])) };
     } catch (e) { NB = { fehler: true, ev: [], daten: {} }; }
     if (location.hash.startsWith("#/neuigkeiten")) route();
@@ -1961,6 +1967,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (e.art === "buchfeedback" && FBC) {
       const a = ((d.fbb || {})[e.ref.buch] || {}).a || {};
       return FBC.fragen.filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null && !(Array.isArray(a[f.id].v) && !a[f.id].v.length)).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>";
+    }
+    if (e.art === "neuig" || e.art === "neuig_gelesen") {
+      const b = d.neuig || {}, a = b.a || {};
+      let h = zeile("Zuerst geöffnet", z(b.gelesen)) + zeile("Abgeschickt", b.sent ? z(b.sent) : "noch nicht");
+      if (NBR) h += brItems(NBR).filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q || f.label || f.id, wert(a[f.id].v))).join("");
+      return h;
     }
     if (e.art === "brief" || e.art === "brief_gelesen") {
       const b = d.brief || {}, a = b.a || {};

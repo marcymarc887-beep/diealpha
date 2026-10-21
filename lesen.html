@@ -320,6 +320,8 @@ body.reading .tabbar { display: none; }
 .fbb > summary small { display: block; font-family: system-ui, sans-serif; font-size: 12px; opacity: .7; }
 .fbb .fbbi { padding: 0 16px 14px; }
 .fbb .q { padding: 12px 0; border-top: 1px solid rgba(128,128,128,.25); }
+.fbb .fbbh { margin: 16px 0 0; padding-top: 10px; border-top: 2px solid var(--accent); font-family: "Cormorant Garamond", serif; font-size: 19px; color: var(--accent); }
+.fbb .fbbh + .q { border-top: 0; }
 .fbb .q h5 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
 .fbb .q h5 small { font-weight: 400; opacity: .7; }
 .fbb .opts { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -1416,7 +1418,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!st || !fbbFuer(st)) return "";
     const e = fbb[id] || {}, n = Object.values(e.a || {}).filter(x => x.v && (!Array.isArray(x.v) || x.v.length)).length;
     return `<details class="fbb" id="fbb"><summary>Ausführliches Feedback<small>${e.sent ? "Abgeschickt – antippen zum Ändern" : n ? n + " von " + FBC.fragen.length + " beantwortet – weitermachen" : "2 Minuten · hilft mir, das nächste Buch besser zu machen"}</small></summary>
-      <div class="fbbi">${FBC.fragen.map(f => `<div class="q" id="fbq_${f.id}">${fbbQ(id, f)}</div>`).join("")}
+      <div class="fbbi">${FBC.fragen.map((f, i) => `${f.abschnitt && f.abschnitt !== (FBC.fragen[i - 1] || {}).abschnitt ? `<div class="fbbh">${esc(f.abschnitt)}</div>` : ""}<div class="q" id="fbq_${f.id}">${fbbQ(id, f)}</div>`).join("")}
       <div class="fbbs"><span id="fbbMsg">${e.sent ? "Abgeschickt ✓" : ""}</span><button type="button" class="btn" id="fbbSend" style="padding:9px 16px">${e.sent ? "Erneut abschicken" : "Abschicken"}</button></div></div></details>`;
   }
   function fbbBind(id) {
@@ -1488,7 +1490,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     h += `<p class="dedication">Stand vom ${z(FBA.stand)} – aktualisieren mit <code>wm.py feedback</code>.</p>`;
     if (!FBA.eintraege.length) h += '<div class="empty">Noch kein Feedback.</div>';
     FBA.eintraege.forEach(k => {
-      h += `<div class="bant"><h4>${esc(k.band)}</h4><div class="meta">${esc(k.name)} · ${k.sent ? "abgeschickt am " + z(k.sent) : "noch nicht abgeschickt"} · zuletzt geändert ${z(k.t)}</div><dl>${k.antworten.map(x => `<dt>${esc(x.q)}</dt><dd>${esc(x.v)}</dd>`).join("")}</dl></div>`;
+      h += `<div class="bant"><h4>${esc(k.band)}</h4><div class="meta">${esc(k.name)} · ${k.sent ? "abgeschickt am " + z(k.sent) : "noch nicht abgeschickt"} · zuletzt geändert ${z(k.t)}</div><dl>${k.antworten.map(x => x.abschnitt ? `<dt style="color:var(--accent);font-weight:600;margin-top:16px">${esc(x.q)}</dt>` : `<dt>${esc(x.q)}</dt><dd>${esc(x.v)}</dd>`).join("")}</dl></div>`;
     });
     return h + "</div>";
   }

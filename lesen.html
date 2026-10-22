@@ -52,6 +52,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .tabbar a { flex: 0 1 160px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); padding: 4px 0; }
 .tabbar a.on { color: var(--text); }
 .tabbar svg { width: 24px; height: 24px; }
+.tabbar .tbx { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; margin-left: 4px; padding-left: 6px; border-left: 1px solid var(--line); }
+.tabbar .tbx a { flex: 0 0 auto; width: 34px; padding: 6px 0; font-size: 17px; opacity: .55; }
+.tabbar .tbx a.on { opacity: 1; }
 
 /* ---------- Startseite ---------- */
 .hero { position: relative; border-radius: 18px; overflow: hidden; margin: 6px 0 26px; min-height: 360px; display: flex; align-items: flex-end; }
@@ -550,6 +553,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   <a href="#/bibliothek" data-tab="lib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h5v16H4zM10 4h5v16h-5zM16.5 4.5l4 .9-3.4 15.4-4-.9z"/></svg>Bibliothek</a>
   <a href="#/gelesen" data-tab="done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8.5l2 2 4-4"/></svg>Gelesen</a>
   <a href="#/erfolge" data-tab="ach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="9" r="6"/><path d="M8.5 13.8L7 21l5-2.6 5 2.6-1.5-7.2"/><path d="M12 6.2l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2L9.1 8.3l2-.3z"/></svg>Erfolge</a>
+  <span class="tbx"><a href="#/einstellungen" data-tab="set" aria-label="Einstellungen" title="Einstellungen">⚙︎</a><a href="#/gutscheine" data-tab="gs" id="tbGs" aria-label="Gutscheine" title="Gutscheine">🎁</a></span>
 </nav>
 <div class="atoast" id="atoast"></div>
 <div class="sheet-bg" id="sheetBg"></div>
@@ -1193,7 +1197,6 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     h += `<div class="sec"><h3>${REIHEN.length ? "Einzelne Geschichten" : "Alle Geschichten"}</h3><span>${all.length} von ${einzel.length}</span></div>${tools(true)}` +
       (all.length ? gridHtml(all) : '<div class="empty">Keine Geschichten in dieser Auswahl.</div>');
     if (sb && gsSichtbar) h += `<a class="fqcard" href="#/gutscheine" style="margin-top:22px"><span class="fqi">🎁</span><span><b>${istAdmin ? "Gutscheinheft (Vorschau)" : "Meine Gutscheine"}</b><span>${istAdmin ? "Testmodus: alle Gutscheine + Erledigt" : "Einlösen, wann immer du willst"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
-    if (sb && !istAdmin) h += `<div id="pn"><div class="sec"><h3>Benachrichtigungen</h3></div><div class="pnbox">${pnInnen()}</div></div>`;
     if (ARCHIV.length) {
       const arc = ARCHIV.slice().sort((a, b) => (a.nr || 0) - (b.nr || 0));
       h += `<details class="fold" id="arcFold" ${prefs.arcOpen ? "open" : ""}><summary class="sec"><h3>Archiv <span>(${arc.length} · nur für dich sichtbar)</span></h3><span class="chev">▾</span></summary><div class="grid">${arc.map(s => tile(s)).join("")}</div></details>`;
@@ -1766,6 +1769,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* Gutscheinheft (Supabase-Tabelle gutscheine): Heft- und Adventsgutscheine, ein Datensatz je Gutschein */
   const GSC = DATA.app.gutscheine || {};
   const gsSichtbar = !!user && (istAdmin || !!GSC.sichtbar);
+  { const g = document.getElementById("tbGs"); if (g && !(sb && gsSichtbar)) g.remove(); }     // Gutschein-Knopf in der Leiste nur, wo das Heft sichtbar ist
   let GS = null;
   const BED_TEXT = b => !b ? "sofort" : /^serie:(\d+)$/.test(b) ? `${b.split(":")[1]} Tage am Stück gelesen` : b === "buch_an_einem_tag" ? "ein Buch an einem Tag gelesen"
     : /^buecher:(\d+)$/.test(b) ? `${b.split(":")[1]} Bücher gelesen` : /^reihe:/.test(b) ? `die Reihe „${esc((REIHE_VON(b) || {}).titel || b.slice(6))}“ ganz gelesen` : /^ach:/.test(b) ? `Erfolg „${(((DATA.app.achievements || []).find(a => a.id === b.slice(4)) || {}).title || b.slice(4))}“` : b;
@@ -2081,6 +2085,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       ${PN_ARTEN.map(([k, t, d]) => `<label><span><b>${t}</b><small>${d}</small></span><input type="checkbox" data-pn="${k}" ${PN.arten[k] === false ? "" : "checked"}></label>`).join("")}
       <button type="button" class="btn ghost" id="pnAus">Auf diesem Gerät ausschalten</button><small id="pnMsg"></small>`;
   }
+  function viewEinstellungen() {
+    let h = header() + '<div class="wrap"><div class="sec"><h3>Einstellungen</h3></div>';
+    if (!sb) return h + '<div class="empty">Nur in der angemeldeten App verfügbar.</div></div>';
+    h += `<div id="pn"><div class="sec"><h3>Benachrichtigungen</h3></div><div class="pnbox">${pnInnen()}</div></div>`;
+    if (istAdmin) h += '<p class="dedication" style="margin-top:14px">So sieht es bei deiner Herrin aus. Deine eigenen Hinweise (was sie liest, beantwortet, einlöst) laufen über dasselbe Gerät – „Ausschalten“ beendet auch sie; neu anmelden unter <a href="#/neuigkeiten">Neuigkeiten</a>.</p>';
+    return h + "</div>";
+  }
   function pnZeigen() { const b = document.querySelector("#pn .pnbox"); if (b) { b.innerHTML = pnInnen(); pnBind(); } }
   async function pnLaden() {
     if (!pushGeht()) return;
@@ -2359,7 +2370,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const reading = parts[0] === "read";
     document.body.classList.toggle("reading", reading);
     document.body.classList.toggle("showp", !!prefs.showP);
-    const tab = parts[0] === "bibliothek" ? "lib" : parts[0] === "gelesen" ? "done" : parts[0] === "erfolge" ? "ach" : "home";
+    const tab = parts[0] === "bibliothek" ? "lib" : parts[0] === "gelesen" ? "done" : parts[0] === "erfolge" ? "ach" : parts[0] === "einstellungen" ? "set" : parts[0] === "gutscheine" ? "gs" : "home";
     document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.tab === tab && !reading && parts[0] !== "story"));
     let html;
     if (parts[0] === "bibliothek") html = viewLibrary();
@@ -2374,6 +2385,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "neuigkeiten") html = viewNeuigkeiten();
     else if (parts[0] === "advent") html = viewAdvent();
     else if (parts[0] === "gutscheine") html = viewGutscheine();
+    else if (parts[0] === "einstellungen") html = viewEinstellungen();
     else if (parts[0] === "kapitelfeedbackantworten") html = viewKfbAntw(parts[1] ? [parts[1], parts[2]] : null);
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {

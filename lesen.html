@@ -438,6 +438,17 @@ body.reading .tabbar { display: none; }
 .nb .nbpush { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; }
 .nb .nbpush .btn { padding: 8px 14px; margin: 8px 8px 0 0; font-size: 13px; }
 .nb .nbpush small { display: block; color: var(--muted); margin-top: 8px; }
+.nb .nbpush textarea, .nb .nbpush select { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--text); font: inherit; font-size: 14px; }
+.nb .nbpush textarea { min-height: 64px; resize: vertical; }
+.pnbox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; font-size: 14px; line-height: 1.5; }
+.pnbox p { margin: 0 0 4px; }
+.pnbox small { display: block; color: var(--muted); margin-top: 8px; }
+.pnbox .btn { padding: 9px 16px; font-size: 14px; margin-top: 10px; }
+.pnbox label { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.pnbox label:first-of-type { margin-top: 10px; }
+.pnbox label span { flex: 1; }
+.pnbox label span small { margin-top: 2px; }
+.pnbox input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); flex: 0 0 auto; }
 .nb .ev { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px; }
 .nb .ev.neu { border-color: var(--accent); }
 .nb .ev > summary { list-style: none; cursor: pointer; padding: 12px 14px; }
@@ -1182,6 +1193,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     h += `<div class="sec"><h3>${REIHEN.length ? "Einzelne Geschichten" : "Alle Geschichten"}</h3><span>${all.length} von ${einzel.length}</span></div>${tools(true)}` +
       (all.length ? gridHtml(all) : '<div class="empty">Keine Geschichten in dieser Auswahl.</div>');
     if (sb && gsSichtbar) h += `<a class="fqcard" href="#/gutscheine" style="margin-top:22px"><span class="fqi">🎁</span><span><b>${istAdmin ? "Gutscheinheft (Vorschau)" : "Meine Gutscheine"}</b><span>${istAdmin ? "Testmodus: alle Gutscheine + Erledigt" : "Einlösen, wann immer du willst"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
+    if (sb && !istAdmin) h += `<div id="pn"><div class="sec"><h3>Benachrichtigungen</h3></div><div class="pnbox">${pnInnen()}</div></div>`;
     if (ARCHIV.length) {
       const arc = ARCHIV.slice().sort((a, b) => (a.nr || 0) - (b.nr || 0));
       h += `<details class="fold" id="arcFold" ${prefs.arcOpen ? "open" : ""}><summary class="sec"><h3>Archiv <span>(${arc.length} · nur für dich sichtbar)</span></h3><span class="chev">▾</span></summary><div class="grid">${arc.map(s => tile(s)).join("")}</div></details>`;
@@ -1996,6 +2008,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     h += `<div class="nbpush"><b>Benachrichtigungen</b> ${an ? "sind auf diesem Gerät erlaubt." : "sind auf diesem Gerät noch aus."}<br>
       <button type="button" class="btn" id="nbEin">${an ? "Gerät neu anmelden" : "Benachrichtigungen einschalten"}</button><button type="button" class="btn ghost" id="nbTest">Test-Nachricht</button>
       <small id="nbMsg">Du bekommst eine kurze Nachricht, wenn deine Herrin den Brief öffnet oder beantwortet, Feedback gibt oder (später) einen Gutschein einlöst – ohne Inhalte.</small></div>`;
+    const ziele = [["lesen.html", "Startseite"], ["lesen.html#/brief", "Neuigkeiten"], ["lesen.html#/gutscheine", "Gutscheine"], ["lesen.html#/advent", "Adventskalender"]];
+    h += `<div class="nbpush"><b>Nachricht an sie</b><textarea id="lpText" maxlength="300" placeholder="Erscheint als Benachrichtigung auf ihrem Handy (Titel „Wolfsmond · von Markus“)"></textarea>
+      <select id="lpZiel" aria-label="Tippen öffnet">${ziele.map(([u, t]) => `<option value="${u}">Tippen öffnet: ${t}</option>`).join("")}
+        <optgroup label="… oder ein Buch">${STORIES.filter(s => s.status !== "demnaechst").map(s => `<option value="lesen.html#/story/${s.id}">${esc(s.title)}</option>`).join("")}</optgroup></select>
+      <button type="button" class="btn" id="lpSend">An sie senden</button><button type="button" class="btn ghost" id="lpTest">Erst an mich (Test)</button>
+      <small id="lpMsg">Sie bekommt sie nur, wenn sie Benachrichtigungen und „Nachrichten von Markus“ eingeschaltet hat.</small></div>`;
     if (!NB) return h + '<div class="loading">Lädt …</div></div>';
     if (NB.fehler) return h + '<div class="empty">Konnte nicht geladen werden.</div></div>';
     if (!NB.ev.length) h += '<div class="empty">Noch keine Neuigkeiten.</div>';
@@ -2007,21 +2025,95 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return h + "</div>";
   }
   function b64u(s) { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+  const pushGeht = () => "serviceWorker" in navigator && "PushManager" in window && typeof Notification !== "undefined";
+  async function pushAbo(m) {
+    if (!pushGeht()) throw new Error("Dieser Browser kann keine Push-Nachrichten empfangen (am besten Chrome auf dem Handy, App über „Zum Startbildschirm“).");
+    m.textContent = "Frage nach Erlaubnis …";
+    if (await Notification.requestPermission() !== "granted") throw new Error("Benachrichtigungen wurden nicht erlaubt (Chrome → Website-Einstellungen → Benachrichtigungen).");
+    const reg = await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(SBC.vapid) });
+    const j = sub.toJSON();
+    const { error } = await sb.from("push_abos").upsert({ endpoint: j.endpoint, abo: j });
+    if (error) throw error;
+  }
   async function pushEin() {
     const m = document.getElementById("nbMsg");
     try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) throw new Error("Dieser Browser kann keine Push-Nachrichten empfangen (am besten Chrome auf dem Handy, App über „Zum Startbildschirm“).");
-      m.textContent = "Frage nach Erlaubnis …";
-      if (await Notification.requestPermission() !== "granted") throw new Error("Benachrichtigungen wurden nicht erlaubt (Chrome → Website-Einstellungen → Benachrichtigungen).");
-      const reg = await navigator.serviceWorker.register("sw.js");
-      await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(SBC.vapid) });
-      const j = sub.toJSON();
-      const { error } = await sb.from("push_abos").upsert({ endpoint: j.endpoint, abo: j });
-      if (error) throw error;
+      await pushAbo(m);
       m.textContent = "Benachrichtigungen sind auf diesem Gerät eingeschaltet ✓ – probier die Test-Nachricht.";
     } catch (e) { m.textContent = (e && e.message) || "Hat nicht geklappt."; }
+  }
+  /* Markus → Leserin (Tabelle leser_push, seit 22.10.2026): Trigger → Edge Function, die ihre Schalter beachtet */
+  async function lpSenden(test) {
+    const m = document.getElementById("lpMsg"), t = document.getElementById("lpText"), text = t.value.trim();
+    if (!text) { m.textContent = "Erst etwas schreiben."; return; }
+    m.textContent = "Sendet …";
+    const zeile = { art: test ? "test" : "nachricht", titel: "Wolfsmond · von Markus", text, url: document.getElementById("lpZiel").value };
+    if (test) zeile.an = user.id;
+    const { data, error } = await sb.from("leser_push").insert(zeile).select("id").single();
+    if (error) { m.textContent = "Senden fehlgeschlagen: " + error.message; return; }
+    if (!test) t.value = "";
+    for (let i = 0; i < 8; i++) {
+      await new Promise(r => setTimeout(r, 1500));
+      const r = await sb.from("leser_push").select("ergebnis").eq("id", data.id).maybeSingle();
+      const e = r.data && r.data.ergebnis;
+      if (e) {
+        m.textContent = e.gesendet ? `Zugestellt an ${e.gesendet} Gerät${e.gesendet === 1 ? "" : "e"} ✓` + (test ? "" : " – sie sieht sie gleich.")
+          : e.aus ? "Nicht gesendet: Sie hat „Nachrichten von Markus“ ausgeschaltet." : test ? "Kein Gerät von dir angemeldet (oben einschalten)." : "Nicht zugestellt: Sie hat Benachrichtigungen (noch) nicht eingeschaltet.";
+        return;
+      }
+    }
+    m.textContent = "Abgeschickt – Zustellung noch unbestätigt.";
+  }
+  /* Benachrichtigungen für die Leserin (Startseite, unter den Gutscheinen): Gerät an/aus + Schalter je Art (push_einst, serverseitig beachtet) */
+  const PN_ARTEN = [["nachricht", "Nachrichten von Markus", "Wenn er dir etwas schickt"], ["neuigkeiten", "Neuigkeiten", "Wenn es neue Neuigkeiten für dich gibt"],
+    ["baende", "Neue Bände", "Fortsetzungen deiner Reihen und neue Geschichten"], ["gutscheine", "Gutscheine", "Wenn ein neuer Gutschein in deinem Heft liegt"],
+    ["advent", "Adventskalender", "Morgens im Dezember, wenn ein neues Türchen aufgeht"]];
+  let PN = null;     // {geraet: dieses Gerät angemeldet, arten: {art: false = aus}}
+  function pnInnen() {
+    if (!pushGeht()) return "<p>Auf diesem Gerät gehen leider keine Benachrichtigungen.</p><small>Am besten in Chrome auf dem Handy öffnen und die App über „Zum Startbildschirm“ hinzufügen.</small>";
+    if (!PN) return '<p>Lädt …</p>';
+    if (!PN.geraet) return `<p>Möchtest du kurz Bescheid bekommen, wenn etwas Neues für dich da ist? Du entscheidest selbst, worüber – und kannst es jederzeit wieder ausschalten.</p>
+      <button type="button" class="btn" id="pnEin">Einschalten</button><small id="pnMsg">${Notification.permission === "denied" ? "Chrome blockiert gerade Benachrichtigungen für diese Seite – über das Schloss-Symbol neben der Adresse → Berechtigungen wieder erlauben." : ""}</small>`;
+    return `<p>Auf diesem Gerät eingeschaltet ✓ Worüber möchtest du Bescheid bekommen?</p>
+      ${PN_ARTEN.map(([k, t, d]) => `<label><span><b>${t}</b><small>${d}</small></span><input type="checkbox" data-pn="${k}" ${PN.arten[k] === false ? "" : "checked"}></label>`).join("")}
+      <button type="button" class="btn ghost" id="pnAus">Auf diesem Gerät ausschalten</button><small id="pnMsg"></small>`;
+  }
+  function pnZeigen() { const b = document.querySelector("#pn .pnbox"); if (b) { b.innerHTML = pnInnen(); pnBind(); } }
+  async function pnLaden() {
+    if (!pushGeht()) return;
+    let geraet = false, arten = {};
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && Notification.permission === "granted" && await reg.pushManager.getSubscription();
+      if (sub) { const r = await sb.from("push_abos").select("endpoint").eq("endpoint", sub.endpoint).maybeSingle(); geraet = !!(r.data || r.error); }
+      const e = await sb.from("push_einst").select("arten").eq("user_id", user.id).maybeSingle();
+      arten = (e.data && e.data.arten) || {};
+    } catch (e) {}
+    PN = { geraet, arten };
+    pnZeigen();
+  }
+  function pnBind() {
+    const m = document.getElementById("pnMsg"), on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    on("pnEin", async () => {
+      try { await pushAbo(m); PN.geraet = true; pnZeigen(); }
+      catch (e) { m.textContent = (e && e.message) || "Hat nicht geklappt."; }
+    });
+    on("pnAus", async () => {
+      m.textContent = "Schaltet aus …";
+      try {
+        const reg = await navigator.serviceWorker.getRegistration(), sub = reg && await reg.pushManager.getSubscription();
+        if (sub) { await sb.from("push_abos").delete().eq("endpoint", sub.endpoint); await sub.unsubscribe(); }
+        PN.geraet = false; pnZeigen();
+      } catch (e) { m.textContent = "Hat nicht geklappt – bitte später noch einmal."; }
+    });
+    document.querySelectorAll("#pn input[data-pn]").forEach(c => { c.onchange = async () => {
+      PN.arten[c.dataset.pn] = c.checked;
+      const { error } = await sb.from("push_einst").upsert({ user_id: user.id, arten: PN.arten, updated_at: new Date().toISOString() });
+      m.textContent = error ? "Konnte nicht gespeichert werden – bitte noch einmal." : "Gespeichert ✓";
+    }; });
   }
   async function pushTest() {
     const m = document.getElementById("nbMsg");
@@ -2335,11 +2427,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (parts[0] === "gutscheine" && sb && gsSichtbar) { if (fresh) GS = null; if (!GS) gsLaden(); else gsBind(); }
     if (parts[0] === "advent" && sb && adventSichtbar) { if (fresh) ADV = null; if (!ADV) advLaden(); else advBind(); }
     if (parts[0] === "neuigkeiten" && sb && istAdmin) {
-      on("nbEin", pushEin); on("nbTest", pushTest);
+      on("nbEin", pushEin); on("nbTest", pushTest); on("lpSend", () => lpSenden(false)); on("lpTest", () => lpSenden(true));
       if (fresh || !NB) { if (fresh) NB = null; if (!NB) nbLaden(); }
     }
     if (parts[0] === "feedbackantworten" && !FBA && sb && fbbLeser) loadBrief("feedback_antworten.json", d => { FBA = d; });
     if (parts[0] === "briefantworten" && !BRA && sb && briefLeser) loadBrief("brief_antworten.json", d => { BRA = d; });
+    if (document.getElementById("pn")) { if (!PN) pnLaden(); else pnBind(); }
     on("logout", async () => { await pushNow(); await sb.auth.signOut(); location.replace("index.html"); });
     if (parts[0] === "story") {
       const sid = parts[1];

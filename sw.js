@@ -28,7 +28,7 @@ self.addEventListener("fetch", e => {
   }
 });
 
-/* Push-Nachrichten (seit 21.10.2026, nur Markus' Konto abonniert): Anzeige und Klick → App öffnen */
+/* Push-Nachrichten (seit 21.10.2026 Markus, seit 22.10.2026 auch die Leserin): Anzeige und Klick → App öffnen */
 self.addEventListener("push", e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data && e.data.text() }; }

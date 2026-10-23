@@ -136,6 +136,7 @@ body.showp .chip.ptoggle .aus { display: inline; }
 
 /* ---------- Leseansicht ---------- */
 body.reading .tabbar { display: none; }
+.fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 .rbar { position: fixed; left: 0; right: 0; top: 0; z-index: 40; background: rgba(12,11,16,.94); backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line); padding: calc(8px + var(--safe-t)) 8px 8px; display: flex; align-items: center; gap: 6px; transition: transform .25s; }
 .rbar.hide { transform: translateY(-110%); }
@@ -635,6 +636,24 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function pushSoon() { if (!sb) return; clearTimeout(pushT); pushT = setTimeout(pushNow, 1200); }
   /* Ereignisse für Markus' Neuigkeiten/Push (seit 21.10.2026): nur aus anderen Konten; offline in einer Warteschlange */
   const istAdmin = !!user && (user.email || "").toLowerCase() === "markus@wolfsmond.app";
+  /* Titelbild nach Anlass (seit 23.10.2026): app.anlaesse, Reihenfolge = Vorrang; von/bis „MM-TT“ (ohne bis = ein Tag),
+     ostern: [Tage vor, Tage nach] Ostersonntag (Gauß/Meeus). t = {y, m, d} in Europe/Berlin. */
+  function anlassHeute(list, t) {
+    const md = String(t.m).padStart(2, "0") + "-" + String(t.d).padStart(2, "0");
+    const ostern = j => { const a = j % 19, b = Math.floor(j / 100), c = j % 100, h = (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30,
+      l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - c % 4) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), x = h + l - 7 * m + 114;
+      return Date.UTC(j, Math.floor(x / 31) - 1, x % 31 + 1); };
+    const diff = (Date.UTC(t.y, t.m - 1, t.d) - ostern(t.y)) / 864e5;
+    return (list || []).find(a => a.ostern ? diff >= a.ostern[0] && diff <= a.ostern[1] : a.von && md >= a.von && md <= (a.bis || a.von)) || null;
+  }
+  /* Heute in Berlin; ?datum=JJJJ-MM-TT simuliert ein Datum (nur wo erlaubt) */
+  function heuteBerlin(simErlaubt) {
+    const sim = simErlaubt && /^(\d{4})-(\d{2})-(\d{2})$/.exec(new URLSearchParams(location.search).get("datum") || "");
+    if (sim) return { y: +sim[1], m: +sim[2], d: +sim[3], sim: true };
+    try { const p = Object.fromEntries(new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date()).map(x => [x.type, x.value])); return { y: +p.year, m: +p.month, d: +p.day }; }
+    catch (e) { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() }; }
+  }
+  const HEUTE = heuteBerlin(istAdmin || !sb);          // Datum simulieren: nur Markus und die lokale Vorschau
   let evq = load("evq", []);
   function ereignis(art, text, ref) {
     if (!sb || istAdmin) return;
@@ -1169,8 +1188,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const inProg = ready.filter(s => progress[s.id] && (!isDone(s) || isRe(s))).sort((a, b) => (progress[b.id].t || 0) - (progress[a.id].t || 0));
     const done = ready.filter(s => isDone(s) && !isRe(s)).sort((a, b) => progress[b.id].done - progress[a.id].done);
     let h = header() + '<div class="wrap">';
-    if (DATA.app.introImage || DATA.app.intro) {
-      h += `<div class="intro">${DATA.app.introImage ? `<a href="#/bibliothek" class="introimg"><img src="${DATA.app.introImage}" alt="Wolfsmond"></a>` : ""}
+    const anl = anlassHeute(DATA.app.anlaesse, HEUTE), introImg = (anl && anl.img) || DATA.app.introImage;
+    if (HEUTE.sim) h += `<div class="gstest"><b>Datum simuliert:</b> ${HEUTE.d}.${HEUTE.m}.${HEUTE.y} → ${anl ? esc(anl.id) : "normales Titelbild"}${HEUTE.m === 12 ? " · Schnee" : HEUTE.m === 10 ? " · Laub" : ""}</div>`;
+    if (introImg || DATA.app.intro) {
+      h += `<div class="intro">${introImg ? `<a href="#/bibliothek" class="introimg"><img src="${introImg}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
     }
     if (sb && adventSichtbar) h += `<a class="fqcard" href="#/advent"><span class="fqi">🕯</span><span><b>Adventskalender${istAdmin ? " (Vorschau)" : ""}</b><span>${istAdmin ? "Alle Türen im Testmodus + Übersicht" : "Jeden Tag im Dezember ein Türchen"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
@@ -2086,6 +2107,37 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       ${PN_ARTEN.map(([k, t, d]) => `<label><span><b>${t}</b><small>${d}</small></span><input type="checkbox" data-pn="${k}" ${PN.arten[k] === false ? "" : "checked"}></label>`).join("")}
       <button type="button" class="btn ghost" id="pnAus">Auf diesem Gerät ausschalten</button><small id="pnMsg"></small>`;
   }
+  /* Jahreszeit-Effekt auf der Startseite (seit 23.10.2026): Dezember Schnee, Oktober Laub – Canvas, ~30 Bilder/s, nicht bei „weniger Bewegung“ */
+  let fx = null;
+  function effekt(an) {
+    const art = an && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? (HEUTE.m === 12 ? "schnee" : HEUTE.m === 10 ? "laub" : null) : null;
+    if (!art || (fx && fx.art !== art)) { if (fx) { cancelAnimationFrame(fx.raf); fx.c.remove(); fx = null; } if (!art) return; }
+    if (fx) return;
+    const c = document.createElement("canvas"), x = c.getContext("2d"), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.className = "fx"; document.body.appendChild(c);
+    const schnee = art === "schnee", FARBEN = ["#c8642a", "#d9952e", "#a8452a", "#b8862f", "#8a5a2b"];
+    const neu = oben => ({ x: Math.random() * innerWidth, y: oben ? -20 : Math.random() * innerHeight, r: schnee ? 1 + Math.random() * 2.2 : 5 + Math.random() * 4,
+      v: schnee ? .3 + Math.random() * .6 : .5 + Math.random() * .7, p: Math.random() * 6.28, w: (Math.random() - .5) * .05, a: Math.random() * 6.28, f: FARBEN[Math.floor(Math.random() * FARBEN.length)] });
+    const teile = Array.from({ length: schnee ? 40 : 14 }, () => neu(false));
+    let last = 0;
+    fx = { art, c, raf: 0 };
+    const bild = t => {
+      fx.raf = requestAnimationFrame(bild);
+      if (t - last < 33) return;
+      const dt = last ? Math.min((t - last) / 16.7, 4) : 1; last = t;
+      if (c.width !== Math.round(innerWidth * dpr) || c.height !== Math.round(innerHeight * dpr)) { c.width = Math.round(innerWidth * dpr); c.height = Math.round(innerHeight * dpr); }
+      x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, innerWidth, innerHeight);
+      for (const q of teile) {
+        q.p += .02 * dt; q.y += q.v * dt; q.x += Math.sin(q.p) * (schnee ? .3 : .8) * dt; q.a += q.w * dt;
+        if (q.y > innerHeight + 20) Object.assign(q, neu(true));
+        if (schnee) { x.globalAlpha = .5; x.fillStyle = "#fff"; x.beginPath(); x.arc(q.x, q.y, q.r, 0, 6.283); x.fill(); continue; }
+        x.save(); x.globalAlpha = .65; x.translate(q.x, q.y); x.rotate(q.a + Math.sin(q.p) * .6); x.fillStyle = q.f;
+        x.beginPath(); x.ellipse(0, 0, q.r, q.r * .5, 0, 0, 6.283); x.fill();
+        x.globalAlpha = .35; x.strokeStyle = "#3a2210"; x.lineWidth = .8; x.beginPath(); x.moveTo(-q.r, 0); x.lineTo(q.r, 0); x.stroke(); x.restore();
+      }
+    };
+    fx.raf = requestAnimationFrame(bild);
+  }
   function viewEinstellungen() {
     let h = header() + '<div class="wrap"><div class="sec"><h3>Einstellungen</h3></div>';
     if (!sb) return h + '<div class="empty">Nur in der angemeldeten App verfügbar.</div></div>';
@@ -2402,6 +2454,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     }
     else html = viewHome();
     app.innerHTML = `<div class="view">${html}</div>`;
+    effekt(!reading && parts[0] === "");
 
     const ss = document.getElementById("sortSel"), fs = document.getElementById("filterSel");
     if (ss) ss.onchange = () => { prefs.sort = ss.value; save("prefs", prefs); route(); };

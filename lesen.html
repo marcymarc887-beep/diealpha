@@ -3085,7 +3085,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
       const st = byId[parts[1]];
-      if (st && st.file && st.chapters && !st.chapters.every(c => c.blocks)) {
+      if (st && (st.file || st.datiert) && st.chapters && !st.chapters.every(c => c.blocks)) {
         app.innerHTML = '<div class="view"><div class="loading">Kapitel werden geladen …</div></div>';
         const want = location.hash;
         ensureBlocks(st).then(() => { if (location.hash === want) route(); })

@@ -582,6 +582,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (r.error) throw r.error;
       metaText = await r.data.text();
       DATA = JSON.parse(metaText);
+      // Datierte Bände (seit 27.10.2026): der Server liefert sie erst ab ihrem Tag (Markus: immer); Texte erst beim Lesen
+      try {
+        const d = await sb.from("datiert").select("id, ab, meta");
+        (d.data || []).forEach(x => { if (!DATA.stories.some(s => s.id === x.id)) DATA.stories.push(Object.assign(x.meta, { datiert: true, ab: x.ab })); });
+      } catch (e) {}
     } catch (e) { return fail("Die Bibliothek konnte nicht geladen werden."); }
   }
   /* Archiv (seit 20.10.2026), pro Konto steuerbar – stories.json → app.archiv:
@@ -593,7 +598,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const KC = ARC ? ((ARC.konten || {})[konto] || {}) : {};
   const OFFEN = KC.offen || (ARC && ARC.offen) || "alle";
   const archivSicht = !ARC || !user || !!KC.archivSehen;                 // lokale Vorschau: alles
-  const isArch = s => !!ARC && OFFEN !== "alle" && !OFFEN.includes(s.id);
+  const isArch = s => !!ARC && OFFEN !== "alle" && !OFFEN.includes(s.id) && !s.datiert;   // datierte Bände stehen nach Freischaltung immer vorn
   const ALLE = DATA.stories.filter(s => archivSicht || !isArch(s));      // alles, was dieses Konto überhaupt sehen darf
   const STORIES = ALLE.filter(s => !isArch(s));                          // Hauptbereich
   const ARCHIV = ALLE.filter(isArch);                                    // nur für Konten mit Archiv
@@ -644,7 +649,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - c % 4) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), x = h + l - 7 * m + 114;
       return Date.UTC(j, Math.floor(x / 31) - 1, x % 31 + 1); };
     const diff = (Date.UTC(t.y, t.m - 1, t.d) - ostern(t.y)) / 864e5;
-    return (list || []).find(a => a.ostern ? diff >= a.ostern[0] && diff <= a.ostern[1] : a.von && md >= a.von && md <= (a.bis || a.von)) || null;
+    return (list || []).find(a => a.ostern ? diff >= a.ostern[0] && diff <= a.ostern[1] : a.von && (a.bis && a.bis < a.von ? md >= a.von || md <= a.bis : md >= a.von && md <= (a.bis || a.von))) || null;
   }
   /* Heute in Berlin; ?datum=JJJJ-MM-TT simuliert ein Datum (nur wo erlaubt) */
   function heuteBerlin(simErlaubt) {
@@ -776,6 +781,12 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   /* ---------- Kapiteltexte nachladen (online liegen sie je Buch in einer eigenen Datei) ---------- */
   async function ensureBlocks(st) {
+    if (st.datiert && !st.chapters.every(c => c.blocks)) {
+      const r = await sb.from("datiert").select("texte").eq("id", st.id).single();
+      if (r.error) throw r.error;
+      st.chapters.forEach((c, i) => { c.blocks = r.data.texte[i] || []; });
+      return;
+    }
     if (!st.file || st.chapters.every(c => c.blocks)) return;
     const r = await sb.storage.from(SBC.bucket).download(st.file);
     if (r.error) throw r.error;
@@ -1189,7 +1200,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const done = ready.filter(s => isDone(s) && !isRe(s)).sort((a, b) => progress[b.id].done - progress[a.id].done);
     let h = header() + '<div class="wrap">';
     const anl = anlassHeute(DATA.app.anlaesse, HEUTE), introImg = (anl && anl.img) || DATA.app.introImage;
-    if (HEUTE.sim) h += `<div class="gstest"><b>Datum simuliert:</b> ${HEUTE.d}.${HEUTE.m}.${HEUTE.y} → ${anl ? esc(anl.id) : "normales Titelbild"}${HEUTE.m === 12 ? " · Schnee" : HEUTE.m === 10 ? " · Laub" : ""}</div>`;
+    if (HEUTE.sim) h += `<div class="gstest"><b>Datum simuliert:</b> ${HEUTE.d}.${HEUTE.m}.${HEUTE.y} → ${anl ? esc(anl.id) : "normales Titelbild"}${effektArt() ? " · Effekt: " + effektArt() : ""}</div>`;
     if (introImg || DATA.app.intro) {
       h += `<div class="intro">${introImg ? `<a href="#/bibliothek" class="introimg"><img src="${introImg}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;
@@ -1992,7 +2003,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (ev.error) throw ev.error;
       if (!BR) { try { const r = await sb.storage.from(SBC.bucket).download("brief.json"); if (!r.error) BR = JSON.parse(await r.data.text()); } catch (e) {} }
       if (!NBR) { try { const r = await sb.storage.from(SBC.bucket).download("neuigkeiten.json"); if (!r.error) NBR = JSON.parse(await r.data.text()); } catch (e) {} }
-      NB = { ev: ev.data || [], daten: Object.fromEntries((pr.data || []).map(r => [r.user_id, r.data || {}])) };
+      const ga = await sb.from("push_abos").select("user_id, geraet, created_at, updated_at, zuletzt_ok, fehler_code, fehler_at, abgelaufen_at").order("zuletzt_ok", { ascending: false, nullsFirst: false });
+      NB = { ev: ev.data || [], daten: Object.fromEntries((pr.data || []).map(r => [r.user_id, r.data || {}])), geraete: ga.error ? null : ga.data || [] };
     } catch (e) { NB = { fehler: true, ev: [], daten: {} }; }
     if (location.hash.startsWith("#/neuigkeiten")) route();
     const neu = (NB.ev || []).filter(x => !x.gesehen_at).map(x => x.id);
@@ -2042,6 +2054,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <small id="lpMsg">Sie bekommt sie nur, wenn sie Benachrichtigungen und „Nachrichten von Markus“ eingeschaltet hat.</small></div>`;
     if (!NB) return h + '<div class="loading">Lädt …</div></div>';
     if (NB.fehler) return h + '<div class="empty">Konnte nicht geladen werden.</div></div>';
+    if (NB.geraete && NB.geraete.length) {     // seit 27.10.2026: Zustellstatus je Gerät
+      const zg = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "noch nie";
+      h += `<div class="nbpush"><b>Geräte</b>${NB.geraete.map(g => `<small>${g.user_id === user.id ? "Du" : "Deine Herrin"} · ${esc(g.geraet || "Gerät")}: zuletzt zugestellt ${zg(g.zuletzt_ok)}${g.abgelaufen_at ? " · abgelaufen, meldet sich beim nächsten Öffnen neu an" : g.fehler_code ? ` · Fehler ${g.fehler_code} am ${zg(g.fehler_at)}` : ""}</small>`).join("")}</div>`;
+    }
     if (!NB.ev.length) h += '<div class="empty">Noch keine Neuigkeiten.</div>';
     const z = t => new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
     NB.ev.forEach(e => {
@@ -2060,9 +2076,41 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(SBC.vapid) });
-    const j = sub.toJSON();
-    const { error } = await sb.from("push_abos").upsert({ endpoint: j.endpoint, abo: j });
+    await aboSpeichern(sub);
+  }
+  /* Abo speichern (seit 27.10.2026 mit Gerätename; ein vorheriges Abo dieses Geräts wird ersetzt) */
+  const geraetName = () => { const u = navigator.userAgent, m = u.match(/Android[^;)]*;\s*([^;)]+?)(?:\s+Build|\))/); return (m ? m[1] : /iPhone|iPad/.test(u) ? "iPhone/iPad" : /Mac/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : "Gerät") + (/Firefox/.test(u) ? " · Firefox" : /Chrome/.test(u) ? " · Chrome" : /Safari/.test(u) ? " · Safari" : ""); };
+  async function aboSpeichern(sub) {
+    const j = sub.toJSON(), alt = load("pushEp", "");
+    let { error } = await sb.from("push_abos").upsert({ endpoint: j.endpoint, abo: j, geraet: geraetName(), abgelaufen_at: null, fehler_code: null, updated_at: new Date().toISOString() });
+    if (error) ({ error } = await sb.from("push_abos").upsert({ endpoint: j.endpoint, abo: j }));   // ältere Tabelle ohne neue Spalten
     if (error) throw error;
+    if (alt && alt !== j.endpoint) await sb.from("push_abos").delete().eq("endpoint", alt);
+    save("pushEp", j.endpoint); save("pushAus", false);
+  }
+  /* Beim App-Start (seit 27.10.2026): Abo dieses Geräts mit dem Server abgleichen – fehlt es, ist es abgelaufen
+     oder gehört es zu einem anderen Schlüssel, wird neu abonniert und per upsert gespeichert. Nur wenn Benachrichtigungen erlaubt und hier nicht ausgeschaltet sind. */
+  async function pushAbgleich() {
+    try {
+      if (!pushGeht() || Notification.permission !== "granted") return;
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) return;
+      let sub = await reg.pushManager.getSubscription();
+      const war = load("pushEp", "");
+      if (!sub && load("pushAus", false)) return;                               // hier bewusst ausgeschaltet
+      let neu = !sub;
+      if (sub) {
+        const k = sub.options && sub.options.applicationServerKey;
+        if (k && btoa(String.fromCharCode(...new Uint8Array(k))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") !== SBC.vapid) neu = true;
+        const r = await sb.from("push_abos").select("endpoint, abgelaufen_at").eq("endpoint", sub.endpoint).maybeSingle();
+        if (r.error && !/abgelaufen_at/.test(r.error.message || "")) return;   // offline o. Ä.: nächstes Mal
+        if (r.data && r.data.abgelaufen_at) neu = true;
+        if (!neu && r.data && war === sub.endpoint) return;                     // alles in Ordnung
+        if (neu) await sub.unsubscribe().catch(() => {});
+      }
+      if (neu) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(SBC.vapid) });
+      await aboSpeichern(sub);
+    } catch (e) {}
   }
   async function pushEin() {
     const m = document.getElementById("nbMsg");
@@ -2107,33 +2155,128 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       ${PN_ARTEN.map(([k, t, d]) => `<label><span><b>${t}</b><small>${d}</small></span><input type="checkbox" data-pn="${k}" ${PN.arten[k] === false ? "" : "checked"}></label>`).join("")}
       <button type="button" class="btn ghost" id="pnAus">Auf diesem Gerät ausschalten</button><small id="pnMsg"></small>`;
   }
-  /* Jahreszeit-Effekt auf der Startseite (seit 23.10.2026): Dezember Schnee, Oktober Laub – Canvas, ~30 Bilder/s, nicht bei „weniger Bewegung“ */
+  /* Effekte auf der Startseite (seit 23.10.2026, Anlässe seit 27.10.2026) – Canvas, ~30 Bilder/s, nicht bei „weniger Bewegung“, nicht beim Lesen.
+     Grund: Dezember Schnee, Oktober Laub. Ein Anlass mit eigenem Effekt hat Vorrang (FX_ANLASS). Alles gezeichnet, keine Emojis. */
+  const FX_ANLASS = { halloween: "kuerbis", ostern: "eier", hochzeit: "konfetti", valentinstag: "rosen", jahrestag: "ballons", silvester: "feuerwerk" };
   let fx = null;
+  function effektArt() {
+    const anl = anlassHeute(DATA.app.anlaesse, HEUTE);
+    return (anl && FX_ANLASS[anl.id]) || (HEUTE.m === 12 ? "schnee" : HEUTE.m === 10 ? "laub" : null);
+  }
   function effekt(an) {
-    const art = an && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? (HEUTE.m === 12 ? "schnee" : HEUTE.m === 10 ? "laub" : null) : null;
+    const art = an && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? effektArt() : null;
     if (!art || (fx && fx.art !== art)) { if (fx) { cancelAnimationFrame(fx.raf); fx.c.remove(); fx = null; } if (!art) return; }
     if (fx) return;
     const c = document.createElement("canvas"), x = c.getContext("2d"), dpr = Math.min(window.devicePixelRatio || 1, 2);
     c.className = "fx"; document.body.appendChild(c);
-    const schnee = art === "schnee", FARBEN = ["#c8642a", "#d9952e", "#a8452a", "#b8862f", "#8a5a2b"];
-    const neu = oben => ({ x: Math.random() * innerWidth, y: oben ? -20 : Math.random() * innerHeight, r: schnee ? 1 + Math.random() * 2.2 : 5 + Math.random() * 4,
-      v: schnee ? .3 + Math.random() * .6 : .5 + Math.random() * .7, p: Math.random() * 6.28, w: (Math.random() - .5) * .05, a: Math.random() * 6.28, f: FARBEN[Math.floor(Math.random() * FARBEN.length)] });
-    const teile = Array.from({ length: schnee ? 40 : 14 }, () => neu(false));
+    const R = (a, b) => a + Math.random() * (b - a), wahl = l => l[Math.floor(Math.random() * l.length)];
+    const W = () => innerWidth, H = () => innerHeight;
+    // je Art: Anzahl, Größe, Geschwindigkeit (negativ = steigt), Schwanken, Farben, Zeichnen
+    const ARTEN = {
+      schnee: { n: 40, r: [1, 3.2], v: [.3, .9], s: .3, f: ["#fff"] },
+      laub: { n: 14, r: [5, 9], v: [.5, 1.2], s: .8, f: ["#c8642a", "#d9952e", "#a8452a", "#b8862f", "#8a5a2b"] },
+      kuerbis: { n: 9, r: [10, 16], v: [.6, 1.1], s: .5, f: ["#e8771e", "#d9661a", "#f08a2c"] },
+      eier: { n: 12, r: [9, 14], v: [.4, .9], s: .6, f: ["#f4a6c0", "#9fd3f0", "#b8e39a", "#f7dc6f", "#c9a7eb", "#f5b58a"] },
+      konfetti: { n: 60, r: [3.5, 6], v: [.7, 1.5], s: 1, f: ["#e74c6f", "#f5c542", "#5bc0eb", "#9bc53d", "#c06ad8", "#ffffff"] },
+      rosen: { n: 18, r: [9, 14], v: [.5, 1], s: 1.1, f: ["#a4122b", "#c21d3a", "#8c0e22", "#d6475e"] },
+      ballons: { n: 9, r: [15, 22], v: [-.9, -.5], s: .4, f: ["#d4af37", "#e6c35c", "#c0392b", "#a8241a"] },
+    };
+    const neu = (start) => {
+      const A = ARTEN[art], steigt = A.v[0] < 0;
+      return { x: R(0, W()), y: start ? R(0, H()) : steigt ? H() + 40 : -30, r: R(A.r[0], A.r[1]), v: R(A.v[0], A.v[1]), p: R(0, 6.28),
+        w: R(-.05, .05), a: R(0, 6.28), f: wahl(A.f), f2: wahl(A.f), herz: art === "konfetti" && Math.random() < .2, l: R(.6, 1) };
+    };
+    const ei = (q) => {      // Ei mit Zickzack-Band
+      x.fillStyle = q.f; x.beginPath(); x.moveTo(0, -q.r);
+      x.bezierCurveTo(q.r * .75, -q.r, q.r * .8, q.r * .8, 0, q.r); x.bezierCurveTo(-q.r * .8, q.r * .8, -q.r * .75, -q.r, 0, -q.r); x.fill();
+      x.save(); x.clip(); x.strokeStyle = q.f2 === q.f ? "#fff" : q.f2; x.lineWidth = q.r * .22; x.beginPath();
+      for (let i = -4; i <= 4; i++) x.lineTo(i * q.r * .25, (i % 2 ? -.12 : .12) * q.r); x.stroke();
+      x.globalAlpha *= .6; x.fillStyle = "#fff"; x.beginPath(); x.ellipse(-q.r * .25, -q.r * .45, q.r * .12, q.r * .22, -.4, 0, 6.283); x.fill(); x.restore();
+    };
+    const herz = (s) => { x.beginPath(); x.moveTo(0, s * .35); x.bezierCurveTo(-s * 1.1, -s * .35, -s * .45, -s * 1.05, 0, -s * .45);
+      x.bezierCurveTo(s * .45, -s * 1.05, s * 1.1, -s * .35, 0, s * .35); x.fill(); };
+    const kuerbis = (q) => {
+      x.fillStyle = "#4e6b2a"; x.fillRect(-q.r * .1, -q.r * 1.05, q.r * .2, q.r * .35);
+      for (const [dx, sx] of [[-.45, .55], [.45, .55], [0, .6]]) {
+        x.fillStyle = dx ? "#c95a12" : q.f; x.beginPath(); x.ellipse(dx * q.r, 0, sx * q.r, q.r * .8, 0, 0, 6.283); x.fill();
+      }
+      x.fillStyle = "#3a1a05"; x.globalAlpha *= .85;
+      for (const s of [-1, 1]) { x.beginPath(); x.moveTo(s * q.r * .38, -q.r * .3); x.lineTo(s * q.r * .12, -q.r * .3); x.lineTo(s * q.r * .25, -q.r * .05); x.fill(); }
+      x.beginPath(); x.moveTo(-q.r * .45, q.r * .18);
+      for (let i = 0; i <= 6; i++) x.lineTo(-q.r * .45 + i * q.r * .15, q.r * (i % 2 ? .3 : .42));
+      x.quadraticCurveTo(0, q.r * .62, -q.r * .45, q.r * .18); x.fill();
+    };
+    const blatt = (q) => {    // Rosenblatt: gewölbt, mit hellerer Mitte
+      x.fillStyle = q.f; x.beginPath(); x.moveTo(0, -q.r);
+      x.bezierCurveTo(q.r * .9, -q.r * .8, q.r * .8, q.r * .7, 0, q.r * .55); x.bezierCurveTo(-q.r * .8, q.r * .7, -q.r * .9, -q.r * .8, 0, -q.r); x.fill();
+      x.globalAlpha *= .35; x.fillStyle = "#ff8fa3"; x.beginPath(); x.ellipse(0, -q.r * .15, q.r * .3, q.r * .5, 0, 0, 6.283); x.fill();
+    };
+    const ballon = (q, t) => {
+      x.strokeStyle = "rgba(255,255,255,.45)"; x.lineWidth = .8; x.beginPath(); x.moveTo(0, q.r * 1.2);
+      for (let i = 1; i <= 6; i++) x.lineTo(Math.sin(t / 400 + q.p + i) * 2.5, q.r * 1.2 + i * q.r * .45); x.stroke();
+      x.fillStyle = q.f; x.beginPath(); x.moveTo(0, q.r * 1.2); x.lineTo(-q.r * .15, q.r * 1.32); x.lineTo(q.r * .15, q.r * 1.32); x.fill();
+      x.beginPath(); x.ellipse(0, 0, q.r * .85, q.r * 1.05, 0, 0, 6.283); x.lineTo(0, q.r * 1.2); x.fill();
+      x.globalAlpha *= .45; x.fillStyle = "#fff"; x.beginPath(); x.ellipse(-q.r * .32, -q.r * .4, q.r * .16, q.r * .3, -.5, 0, 6.283); x.fill();
+    };
+    // Feuerwerk: Raketen steigen, zerplatzen in Funken (Schwerkraft, Verglühen), dazu feiner Funkenregen
+    const raketen = [], funken = [], FW = ["#ffd166", "#ff6b6b", "#6be4ff", "#b388ff", "#7dff9b", "#ffffff", "#ff9f43"];
+    let naechste = 0;
+    const platzen = (r) => {
+      const n = Math.round(R(36, 60)), farbe = wahl(FW), zweite = Math.random() < .4 ? wahl(FW) : farbe, kraft = R(2.6, 4.4);
+      for (let i = 0; i < n; i++) { const a = i / n * 6.283 + R(-.08, .08), s = kraft * R(.55, 1);
+        funken.push({ x: r.x, y: r.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: R(45, 80), max: 80, f: i % 2 ? farbe : zweite, gr: R(1.5, 2.4) }); }
+    };
+    const teile = art === "feuerwerk" ? [] : Array.from({ length: ARTEN[art].n }, () => neu(true));
     let last = 0;
     fx = { art, c, raf: 0 };
     const bild = t => {
       fx.raf = requestAnimationFrame(bild);
       if (t - last < 33) return;
       const dt = last ? Math.min((t - last) / 16.7, 4) : 1; last = t;
-      if (c.width !== Math.round(innerWidth * dpr) || c.height !== Math.round(innerHeight * dpr)) { c.width = Math.round(innerWidth * dpr); c.height = Math.round(innerHeight * dpr); }
-      x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, innerWidth, innerHeight);
+      if (c.width !== Math.round(W() * dpr) || c.height !== Math.round(H() * dpr)) { c.width = Math.round(W() * dpr); c.height = Math.round(H() * dpr); }
+      x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W(), H());
+      if (art === "feuerwerk") {
+        if (t > naechste) { raketen.push({ x: R(W() * .15, W() * .85), y: H() + 5, vy: -R(5.5, 7.5), ziel: R(H() * .15, H() * .45) }); naechste = t + R(700, 1600); }
+        x.globalCompositeOperation = "lighter";
+        for (let i = raketen.length - 1; i >= 0; i--) {
+          const r = raketen[i]; r.y += r.vy * dt; r.vy *= Math.pow(.985, dt);
+          x.globalAlpha = .9; x.fillStyle = "#ffe8b0"; x.beginPath(); x.arc(r.x, r.y, 1.6, 0, 6.283); x.fill();
+          x.globalAlpha = .35; x.fillRect(r.x - .6, r.y, 1.2, 14);
+          if (r.y <= r.ziel || r.vy > -1.5) { platzen(r); raketen.splice(i, 1); }
+        }
+        if (Math.random() < .5 * dt) funken.push({ x: R(0, W()), y: -5, vx: R(-.2, .2), vy: R(.6, 1.4), life: R(80, 140), max: 140, f: "#ffd98a", gr: R(.6, 1.2), regen: true });
+        for (let i = funken.length - 1; i >= 0; i--) {
+          const s = funken[i]; s.life -= dt;
+          if (s.life <= 0 || s.y > H() + 10) { funken.splice(i, 1); continue; }
+          if (!s.regen) { s.vx *= Math.pow(.965, dt); s.vy = s.vy * Math.pow(.965, dt) + .045 * dt; }
+          s.x += s.vx * dt; s.y += s.vy * dt;
+          const k = s.life / s.max;
+          x.globalAlpha = s.regen ? .5 * Math.min(1, k * 3) * (.6 + .4 * Math.sin(t / 60 + i)) : Math.min(1, k * 1.6);
+          x.fillStyle = s.f; x.beginPath(); x.arc(s.x, s.y, s.gr * (s.regen ? 1 : .6 + k * .6), 0, 6.283); x.fill();
+        }
+        x.globalCompositeOperation = "source-over"; x.globalAlpha = 1;
+        return;
+      }
+      const A = ARTEN[art];
       for (const q of teile) {
-        q.p += .02 * dt; q.y += q.v * dt; q.x += Math.sin(q.p) * (schnee ? .3 : .8) * dt; q.a += q.w * dt;
-        if (q.y > innerHeight + 20) Object.assign(q, neu(true));
-        if (schnee) { x.globalAlpha = .5; x.fillStyle = "#fff"; x.beginPath(); x.arc(q.x, q.y, q.r, 0, 6.283); x.fill(); continue; }
-        x.save(); x.globalAlpha = .65; x.translate(q.x, q.y); x.rotate(q.a + Math.sin(q.p) * .6); x.fillStyle = q.f;
-        x.beginPath(); x.ellipse(0, 0, q.r, q.r * .5, 0, 0, 6.283); x.fill();
-        x.globalAlpha = .35; x.strokeStyle = "#3a2210"; x.lineWidth = .8; x.beginPath(); x.moveTo(-q.r, 0); x.lineTo(q.r, 0); x.stroke(); x.restore();
+        q.p += .02 * dt; q.y += q.v * dt; q.x += Math.sin(q.p) * A.s * dt; q.a += q.w * dt;
+        if (A.v[0] < 0 ? q.y < -q.r * 4 : q.y > H() + 30) Object.assign(q, neu(false));
+        if (art === "schnee") { x.globalAlpha = .5; x.fillStyle = "#fff"; x.beginPath(); x.arc(q.x, q.y, q.r * .7, 0, 6.283); x.fill(); continue; }
+        x.save(); x.translate(q.x, q.y);
+        if (art === "laub") {
+          x.globalAlpha = .65; x.rotate(q.a + Math.sin(q.p) * .6); x.fillStyle = q.f;
+          x.beginPath(); x.ellipse(0, 0, q.r, q.r * .5, 0, 0, 6.283); x.fill();
+          x.globalAlpha = .35; x.strokeStyle = "#3a2210"; x.lineWidth = .8; x.beginPath(); x.moveTo(-q.r, 0); x.lineTo(q.r, 0); x.stroke();
+        } else if (art === "kuerbis") { x.globalAlpha = .8; x.rotate(Math.sin(q.p) * .35); kuerbis(q); }
+        else if (art === "eier") { x.globalAlpha = .8; x.rotate(q.a * .6); ei(q); }
+        else if (art === "rosen") { x.globalAlpha = .75; x.rotate(q.a + Math.sin(q.p) * .9); x.scale(1, .55 + .45 * Math.abs(Math.cos(q.p * 1.3))); blatt(q); }
+        else if (art === "ballons") { x.globalAlpha = .85 * q.l; x.rotate(Math.sin(q.p) * .12); ballon(q, t); }
+        else if (art === "konfetti") {
+          x.globalAlpha = .85; x.rotate(q.a * 2);
+          if (q.herz) { x.fillStyle = q.f === "#ffffff" || q.f === "#5bc0eb" || q.f === "#9bc53d" ? "#e74c6f" : q.f; x.scale(1, Math.abs(Math.cos(q.p * 1.5)) * .6 + .4); herz(q.r * 2.2); }
+          else { x.scale(.25 + .75 * Math.abs(Math.cos(q.p * 3)), 1); x.fillStyle = q.f; x.fillRect(-q.r, -q.r * .45, q.r * 2, q.r * .9); }
+        }
+        x.restore();
       }
     };
     fx.raf = requestAnimationFrame(bild);
@@ -2170,7 +2313,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       try {
         const reg = await navigator.serviceWorker.getRegistration(), sub = reg && await reg.pushManager.getSubscription();
         if (sub) { await sb.from("push_abos").delete().eq("endpoint", sub.endpoint); await sub.unsubscribe(); }
-        PN.geraet = false; pnZeigen();
+        save("pushEp", ""); save("pushAus", true); PN.geraet = false; pnZeigen();
       } catch (e) { m.textContent = "Hat nicht geklappt – bitte später noch einmal."; }
     });
     document.querySelectorAll("#pn input[data-pn]").forEach(c => { c.onchange = async () => {
@@ -2568,7 +2711,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   /* ---------- Altersabfrage ---------- */
   function gate() {
-    if (sb) { evFlush(); setTimeout(nbZahl, 1200); setTimeout(gsPruefen, 2500); }     // Ereignis-Warteschlange senden, Neuigkeiten-Zähler (Markus)
+    if (sb) { evFlush(); setTimeout(nbZahl, 1200); setTimeout(gsPruefen, 2500); setTimeout(pushAbgleich, 3500); }     // Ereignis-Warteschlange senden, Neuigkeiten-Zähler (Markus)
     if (user || load("adult", false)) return route();
     app.innerHTML = `<div class="gate"><div class="box">${moonIcon}<h2>${esc(DATA.app.name)}</h2>
       <p>${esc(DATA.app.tagline || "")}<br><br>Diese Geschichten sind ausschließlich für Erwachsene. Bitte bestätige, dass du mindestens 18 Jahre alt bist.</p>

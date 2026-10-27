@@ -1,6 +1,6 @@
 /* Wolfsmond – Service Worker: macht die Seite installierbar und hält Hülle, Cover und Icons vor.
    Anfragen an Supabase (Anmeldung, Texte, Fortschritt) und CDNs laufen unverändert durchs Netz. */
-const CACHE = "wolfsmond-v5";
+const CACHE = "wolfsmond-v6";
 const SHELL = ["./", "./index.html", "./lesen.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -43,4 +43,21 @@ self.addEventListener("notificationclick", e => {
     for (const c of cs) if (c.url.includes("lesen.html")) { c.navigate(url).catch(() => {}); return c.focus(); }
     return clients.openWindow(url);
   }));
+});
+
+/* Abo vom Browser erneuert (seit 27.10.2026): neu abonnieren und das alte auf dem Server ersetzen.
+   Ohne Anmeldung – push_abo_ersetzen übernimmt das Konto des alten Endpoints. Klappt es nicht, gleicht die App beim nächsten Start ab. */
+const SB_URL = "https://kxqklzqyzcymiqxuloem.supabase.co", SB_KEY = "sb_publishable_SR9Gq_b6VMSbNqCs640nyA_gmxMnw4v";
+const VAPID = "BJsspZJglsxFdQd1ktTHB5zmHh1PIYaJH_ZRk7oVeLpZwnv7nJvgUVtwkpqqda8lLz9lsBWc_hoCEE-nrsbGti0";
+function b64u(s) { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+self.addEventListener("pushsubscriptionchange", e => {
+  const alt = e.oldSubscription && e.oldSubscription.endpoint;
+  e.waitUntil((async () => {
+    const neu = e.newSubscription || await self.registration.pushManager.getSubscription()
+      || await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID) });
+    if (!alt || !neu || neu.endpoint === alt) return;
+    await fetch(SB_URL + "/rest/v1/rpc/push_abo_ersetzen", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_KEY },
+      body: JSON.stringify({ alt, neu: neu.toJSON() }) }).catch(() => {});
+  })());
 });

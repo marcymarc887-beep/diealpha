@@ -1259,7 +1259,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* ---------- Reihen-Gimmicks (seit 27.10.2026, Markus): wachsen mit dem Lesestand. Gelesene Bände sichtbar,
      der nächste nur angedeutet, nichts aus ungelesenen Bänden. Daten je Band: stories.json → "gimmick". ---------- */
-  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass, mondschacht: gimSchacht, "die-erzaehlten": gimNebel, "vergessene-fahrt": gimArche, kometenblut: gimKomet };
+  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass, mondschacht: gimSchacht, "die-erzaehlten": gimNebel, "vergessene-fahrt": gimArche, kometenblut: gimKomet, "und-wenn-sie-nicht-gestorben-sind": gimMaerchen };
   const GIM_INFO = { asmussen: gimSchirmInfo, grenzgaenger: gimPassInfo, mondschacht: gimSchachtInfo, "die-erzaehlten": gimNebelInfo, "vergessene-fahrt": gimArcheInfo, kometenblut: gimKometInfo };
   function gimmickHTML(r) {
     const f = GIMMICKS[r.id];
@@ -1486,12 +1486,48 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const [b, n] = String(i).split(":"), s = r.st.filter(isDone)[+b], g = s.gimmick || {};
     return `<b>${esc(n)}</b><small>Station in „${esc(s.title)}“${g.jahr ? " · " + esc(g.jahr) : ""}</small>${g.schuld_text ? `<i>${esc(g.schuld_text)}</i>` : ""}`;
   }
+  /* Märchenkrimi: Idas Märchenbuch, eine Seite pro gelöstem Fall mit Siegel; die nächste Seite ist noch versiegelt. Blättern mit ‹ › */
+  let gimSeite = null;
+  const SIEGEL = { spindel: '<path d="M0,-11 V11 M-5,-6 h10 M-5,6 h10" stroke="#f3c9b0" stroke-width="1.6" fill="none"/><ellipse rx="3.5" ry="6" fill="none" stroke="#f3c9b0" stroke-width="1.4"/>',
+    "": '<path d="M0,-9 l2.6,6 6.4,.6 -4.8,4.2 1.4,6.3 -5.6,-3.3 -5.6,3.3 1.4,-6.3 -4.8,-4.2 6.4,-.6 z" fill="none" stroke="#f3c9b0" stroke-width="1.3"/>' };
+  function gimMaerchen(r, gelesen, naechster) {
+    const seiten = gelesen.length + (naechster ? 1 : 0);
+    if (gimSeite == null || gimSeite >= seiten) gimSeite = Math.max(0, gelesen.length - 1);
+    const i = gimSeite, s = gelesen[i], zu = !s, g = (s && s.gimmick) || {};
+    const siegel = (x, y, gebrochen) => `<g transform="translate(${x} ${y})"><path d="M0,-17 C9,-18 17,-10 17,0 C18,9 9,17 0,17 C-10,18 -17,9 -17,0 C-18,-10 -9,-17 0,-17 Z" fill="#8f1d24"/><circle r="12" fill="#a8262e"/>${SIEGEL[g.siegel || ""] || SIEGEL[""]}${gebrochen ? '<path d="M-4,-17 l3,9 -4,6 4,8 -2,11" stroke="#3a0a0e" stroke-width="1.2" fill="none"/>' : ""}</g>`;
+    const links = zu ? `<text x="88" y="120" text-anchor="middle" fill="#7a6a4a" font-size="11" font-family="Cormorant Garamond, serif" font-style="italic">Diese Seite</text><text x="88" y="136" text-anchor="middle" fill="#7a6a4a" font-size="11" font-family="Cormorant Garamond, serif" font-style="italic">ist noch nicht geschrieben.</text>`
+      : `<rect x="34" y="40" width="34" height="34" fill="#8f1d24"/><text x="51" y="68" text-anchor="middle" fill="#f3d27a" font-size="30" font-family="Cormorant Garamond, serif" font-weight="700">${esc((g.maerchen || s.title).charAt(0))}</text>
+        <text x="74" y="56" fill="#3a2a14" font-size="13" font-family="Cormorant Garamond, serif" font-weight="700">${esc((g.maerchen || s.title).slice(1))}</text>
+        <text x="74" y="70" fill="#7a5a2a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing="1">MÄR · ${esc((g.jahr || "").toUpperCase())}</text>
+        ${[0, 1, 2, 3, 4, 5, 6].map(k => `<path d="M34,${92 + k * 12} H${k === 6 ? 100 : 144}" stroke="#b8a888" stroke-width="1.2" opacity=".55"/>`).join("")}
+        <path d="M40,190 q48,-16 96,0" fill="none" stroke="#9a7a3a" stroke-width="1"/><circle cx="88" cy="184" r="2" fill="#9a7a3a"/>`;
+    const rechts = zu ? siegel(232, 112, false) + `<text x="232" y="160" text-anchor="middle" fill="#7a6a4a" font-size="9" font-family="Inter, sans-serif" letter-spacing="1">VERSIEGELT</text>`
+      : `<text x="232" y="52" text-anchor="middle" fill="#7a5a2a" font-size="8" font-family="Inter, sans-serif" letter-spacing="1.5">DER FALL</text>
+        <text x="232" y="74" text-anchor="middle" fill="#2a1a0a" font-size="17" font-family="Cormorant Garamond, serif" font-weight="700">${esc(g.fall || s.title)}</text>
+        <text x="232" y="92" text-anchor="middle" fill="#5a4a2a" font-size="9" font-family="Inter, sans-serif">${esc(g.ort || "")}</text>
+        ${siegel(232, 132, true)}
+        <text x="232" y="176" text-anchor="middle" fill="#7a5a2a" font-size="8" font-family="Inter, sans-serif" letter-spacing="1">GELÖST · ${esc(s.reihe.teil + ". FALL")}</text>`;
+    return `<h4>Idas Märchenbuch</h4><p class="gsub">Eine Seite für jeden gelösten Fall, mit rotem Wachs gesiegelt. ${seiten > 1 ? "Blättere mit ‹ ›." : ""}</p>
+      <svg viewBox="0 0 320 230" role="img" aria-label="Märchenbuch">
+        <rect width="320" height="230" rx="10" fill="#120e0a"/>
+        <path d="M14,24 Q160,8 306,24 V214 Q160,200 14,214 Z" fill="#4a2a16"/>
+        <path d="M22,28 Q90,20 158,30 V208 Q90,198 22,206 Z" fill="#efe3c4"/><path d="M162,30 Q230,20 298,28 V206 Q230,198 162,208 Z" fill="#f2e7cb"/>
+        <path d="M158,30 Q160,26 162,30 V208 Q160,212 158,208 Z" fill="#c9b48a"/>
+        <path d="M22,28 Q90,20 158,30 V208 Q90,198 22,206 Z M162,30 Q230,20 298,28 V206 Q230,198 162,208 Z" fill="none" stroke="#b89a5a" stroke-width=".8"/>
+        ${links}${rechts}
+        ${i > 0 ? `<g data-gb="-1" tabindex="0"><circle cx="30" cy="218" r="10" fill="#2a1a10"/><text x="30" y="222" text-anchor="middle" fill="#e8c27a" font-size="13">‹</text></g>` : ""}
+        ${i < seiten - 1 ? `<g data-gb="1" tabindex="0"><circle cx="290" cy="218" r="10" fill="#2a1a10"/><text x="290" y="222" text-anchor="middle" fill="#e8c27a" font-size="13">›</text></g>` : ""}
+        <text x="160" y="224" text-anchor="middle" fill="#8a6a3a" font-size="8" font-family="Inter, sans-serif">${seiten ? `Seite ${i + 1} von ${seiten}` : ""}</text>
+      </svg><div class="ginfo" id="ginfo">${zu ? "<b>Die nächste Mär</b><small>Welches Märchen hier wartet, verrät erst der nächste Fall.</small>" : `<b>${esc(g.maerchen || "")}</b> · ${esc(g.fall || s.title)}<small>${esc([g.ort, g.jahr].filter(Boolean).join(" · "))}</small>${g.zeile ? `<i>${esc(g.zeile)}</i>` : ""}`}</div>`;
+  }
   function gimmickBind() {
     const box = document.querySelector(".gim");
     if (!box) return;
     const r = REIHEN.find(x => x.id === box.dataset.gim), info = box.querySelector("#ginfo");
     box.onclick = e => {
       const p = box.querySelector("[data-pass]");
+      const bl = e.target.closest("[data-gb]");
+      if (bl) { gimSeite += +bl.dataset.gb; box.innerHTML = GIMMICKS[r.id](r, r.st.filter(isDone), r.st.find(s => !isDone(s))); return gimmickBind(); }
       const t = e.target.closest("[data-g]");
       if (p && !prefs.passOffen) { prefs.passOffen = true; save("prefs", prefs); box.querySelector(".pdeckel").style.transform = "scaleX(0)"; box.querySelector(".gsub").textContent = "Ein Stempel für jedes Land, das du mit ihnen bereist hast. Tippe auf einen Stempel."; return; }
       if (!t) return;

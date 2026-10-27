@@ -1259,7 +1259,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* ---------- Reihen-Gimmicks (seit 27.10.2026, Markus): wachsen mit dem Lesestand. Gelesene Bände sichtbar,
      der nächste nur angedeutet, nichts aus ungelesenen Bänden. Daten je Band: stories.json → "gimmick". ---------- */
-  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass };
+  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass, mondschacht: gimSchacht, "die-erzaehlten": gimNebel };
+  const GIM_INFO = { asmussen: gimSchirmInfo, grenzgaenger: gimPassInfo, mondschacht: gimSchachtInfo, "die-erzaehlten": gimNebelInfo };
   function gimmickHTML(r) {
     const f = GIMMICKS[r.id];
     if (!f) return "";
@@ -1351,6 +1352,78 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const s = r.st.filter(isDone)[+i], g = s.gimmick || {};
     return `<b>${esc(g.land || "Band " + s.reihe.teil)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}<small>${esc(g.ort || "")}${g.ort ? " · " : ""}„${esc(s.title)}“</small>`;
   }
+  /* Mondschacht: Fördergerüst und Schacht; je gelesenem Band eine Sohle tiefer, dort brennt die Grubenlampe, der Korb steht auf der tiefsten */
+  function gimSchacht(r, gelesen, naechster) {
+    const n = Math.max(r.st.length, gelesen.length + 1), tief = 18, H = 120 + n * 52 + 46, korbY = gelesen.length ? 120 + gelesen.length * 52 - 22 : 92;
+    let sohlen = "";
+    for (let i = 0; i < n; i++) {
+      const y = 120 + (i + 1) * 52, an = i < gelesen.length, nx = !an && i === gelesen.length && naechster, links = i % 2 === 0;
+      const x1 = links ? 30 : 182, x2 = links ? 138 : 290, lx = links ? 52 : 268;
+      sohlen += `<g ${an || nx ? `data-g="${an ? i : "n"}" tabindex="0"` : ""} opacity="${an ? 1 : nx ? .55 : .22}">
+        <rect x="${x1}" y="${y - tief}" width="${x2 - x1}" height="${tief}" fill="#1a1612" stroke="#3a2e22" stroke-width="1"/>
+        ${[0, 1, 2, 3].map(k => `<path d="M${x1 + 6 + k * (x2 - x1 - 12) / 3},${y - tief} v${tief}" stroke="#5a4028" stroke-width="2"/>`).join("")}
+        <path d="M${x1},${y - tief} h${x2 - x1}" stroke="#5a4028" stroke-width="2"/>
+        ${an ? `<circle cx="${lx}" cy="${y - 10}" r="16" fill="url(#glampe)"/><path d="M${lx - 3},${y - 15} h6 l1,8 h-8 z" fill="#c9a24a"/><circle cx="${lx}" cy="${y - 10}" r="2.2" fill="#fff4c8"/>`
+          : `<path d="M${lx - 3},${y - 15} h6 l1,8 h-8 z" fill="#4a4030"/>`}
+        <text x="${links ? x1 + 4 : x2 - 4}" y="${y + 11}" text-anchor="${links ? "start" : "end"}" fill="${an ? "#d8c39a" : "#7a6e5a"}" font-size="9" font-family="Inter, sans-serif" letter-spacing=".5">${i + 1}. SOHLE${an && gelesen[i].gimmick && gelesen[i].gimmick.jahr ? " · " + esc(gelesen[i].gimmick.jahr) : nx ? " · ?" : ""}</text></g>`;
+    }
+    return `<h4>Der Mondschacht</h4><p class="gsub">Mit jedem Band fährt der Korb eine Sohle tiefer. ${gelesen.length ? "Tippe auf eine Sohle." : "Noch steht der Korb über Tage."}</p>
+      <svg viewBox="0 0 320 ${H}" role="img" aria-label="Förderschacht">
+        <defs><radialGradient id="glampe"><stop offset="0" stop-color="rgba(255,214,120,.85)"/><stop offset="1" stop-color="rgba(255,180,60,0)"/></radialGradient>
+          <linearGradient id="gerde" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1814"/><stop offset="1" stop-color="#0a0807"/></linearGradient></defs>
+        <rect width="320" height="${H}" rx="10" fill="url(#gerde)"/>
+        <rect width="320" height="96" rx="10" fill="#16141e"/>
+        ${Array.from({ length: 14 }, (_, k) => `<circle cx="${(k * 53) % 310 + 6}" cy="${(k * 29) % 70 + 8}" r="${k % 3 ? .7 : 1.1}" fill="#cfc8e8" opacity=".5"/>`).join("")}
+        <circle cx="262" cy="26" r="12" fill="#e8dcb0" opacity=".85"/><circle cx="267" cy="22" r="11" fill="#16141e"/>
+        <path d="M0,96 H320" stroke="#3a2e22" stroke-width="2"/>
+        <g stroke="#7a2a22" stroke-width="3" fill="none"><path d="M122,96 L148,24 L172,24 L198,96"/><path d="M130,74 H190 M137,52 H183 M160,24 V96"/><path d="M148,24 L198,96 M172,24 L122,96" stroke-width="1.5"/></g>
+        <circle cx="160" cy="22" r="13" fill="none" stroke="#9a3a2a" stroke-width="3"/><circle cx="160" cy="22" r="2" fill="#9a3a2a"/>
+        ${[0, 1, 2, 3].map(k => `<path d="M160,22 l${Math.cos(k * .785) * 12},${Math.sin(k * .785) * 12} M160,22 l${-Math.cos(k * .785) * 12},${-Math.sin(k * .785) * 12}" stroke="#9a3a2a" stroke-width="1.2"/>`).join("")}
+        <rect x="146" y="96" width="28" height="${H - 110}" fill="#050404" stroke="#2a221a"/>
+        <path d="M160,22 V${korbY}" stroke="#8a8a8a" stroke-width=".9"/>
+        <g transform="translate(149 ${korbY})"><rect width="22" height="22" fill="#2a2620" stroke="#a89a7a" stroke-width="1.5"/><path d="M0,7 h22 M0,15 h22 M7,0 v22 M15,0 v22" stroke="#6a5e4a" stroke-width=".8"/>${gelesen.length ? `<circle cx="11" cy="11" r="3" fill="#ffd27a"/>` : ""}</g>
+        ${sohlen}
+        <text x="160" y="${H - 10}" text-anchor="middle" fill="#6a5e4a" font-size="9" font-family="Inter, sans-serif" letter-spacing="2">ZECHE MONDHEIDE · GLÜCK AUF</text>
+      </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Erreichte Sohlen: <b>${gelesen.length}</b>` : "Lies den ersten Band, dann fährt der Korb ein."}</div>`;
+  }
+  function gimSchachtInfo(r, i) {
+    if (i === "n") return "<b>Die nächste Sohle</b><small>Noch nicht aufgefahren – die Lampe brennt erst, wenn du dort warst.</small>";
+    const s = r.st.filter(isDone)[+i], g = s.gimmick || {};
+    return `<b>${+i + 1}. Sohle: ${esc(s.title)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}<small>${esc([g.zeit, g.ort].filter(Boolean).join(" · "))}</small>${g.notiz ? `<i>${esc(g.notiz)}</i>` : ""}`;
+  }
+  /* Die Erzählten: Zeitstrahl im Nebel; gelesene Bände klar, der nächste halb im Nebel, Rückblenden als kleine Lichtpunkte */
+  function gimNebel(r, gelesen, naechster) {
+    const n = Math.max(r.st.length, gelesen.length + 1), W = Math.max(320, 70 + n * 90), x = i => 40 + i * 90, klar = gelesen.length ? x(gelesen.length - 1) + 45 : 20;
+    let punkte = "";
+    r.st.slice(0, n).forEach((s, i) => {
+      const an = i < gelesen.length, nx = !an && s === naechster, g = s.gimmick || {};
+      if (!an && !nx) { punkte += `<circle cx="${x(i)}" cy="80" r="4" fill="#5a5466" opacity=".4"/>`; return; }
+      punkte += `<g data-g="${an ? i : "n"}" tabindex="0">${an ? `<circle cx="${x(i)}" cy="80" r="16" fill="url(#gfeuer)"/>` : ""}
+        <circle cx="${x(i)}" cy="80" r="${an ? 6 : 5}" fill="${an ? "#ffd27a" : "#8f8a9c"}" stroke="${an ? "#fff2c8" : "none"}" stroke-width="1.5"/>
+        <text x="${x(i)}" y="${i % 2 ? 118 : 50}" text-anchor="middle" fill="${an ? "#e8d9b0" : "#8f8a9c"}" font-size="10" font-family="Cormorant Garamond, serif" font-weight="700">${an ? esc(g.zeit || "Band " + (i + 1)) : "?"}</text>
+        ${an && g.epoche ? `<text x="${x(i)}" y="${i % 2 ? 130 : 38}" text-anchor="middle" fill="#a89a7a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing=".6">${esc(g.epoche.toUpperCase())}</text>` : ""}
+        ${an ? (g.rueckblenden || []).map((rb, k) => `<circle data-g="${i}.${k}" tabindex="0" cx="${x(i) - 30 + k * 12}" cy="${66 - (k % 2) * 8}" r="2.4" fill="#cfe4ff"><animate attributeName="opacity" values=".4;1;.4" dur="${2 + k * .4}s" repeatCount="indefinite"/></circle>`).join("") : ""}</g>`;
+    });
+    const nebel = Array.from({ length: 9 }, (_, k) => `<ellipse cx="${klar + 30 + k * ((W - klar) / 8)}" cy="${60 + (k % 3) * 18}" rx="${60 + (k % 4) * 14}" ry="${26 + (k % 3) * 8}" fill="#c9c4d8" opacity="${.07 + (k % 3) * .03}" filter="url(#gweich)"><animate attributeName="cx" values="${klar + 30 + k * ((W - klar) / 8)};${klar + 46 + k * ((W - klar) / 8)};${klar + 30 + k * ((W - klar) / 8)}" dur="${9 + k}s" repeatCount="indefinite"/></ellipse>`).join("");
+    return `<h4>Was man von ihnen erzählt</h4><p class="gsub">Der Nebel über der Zeit lichtet sich mit jedem Band. ${gelesen.length ? "Tippe auf einen Punkt." : ""}</p>
+      <div style="overflow-x:auto"><svg viewBox="0 0 ${W} 150" style="min-width:${Math.min(W, 640)}px" role="img" aria-label="Zeitstrahl">
+        <defs><radialGradient id="gfeuer"><stop offset="0" stop-color="rgba(255,190,90,.6)"/><stop offset="1" stop-color="rgba(255,150,60,0)"/></radialGradient>
+          <linearGradient id="gstrahl" x1="0" x2="1"><stop offset="0" stop-color="#e8b44f"/><stop offset="${Math.min(1, klar / W).toFixed(2)}" stop-color="#e8b44f"/><stop offset="${Math.min(1, (klar + 60) / W).toFixed(2)}" stop-color="#4a4458"/></linearGradient>
+          <filter id="gweich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+          <linearGradient id="gnebel" x1="0" x2="1"><stop offset="0" stop-color="#14121a" stop-opacity="0"/><stop offset=".25" stop-color="#14121a" stop-opacity=".55"/><stop offset="1" stop-color="#14121a" stop-opacity=".92"/></linearGradient></defs>
+        <rect width="${W}" height="150" rx="10" fill="#14121a"/>
+        <path d="M14,80 H${W - 14}" stroke="url(#gstrahl)" stroke-width="2"/>
+        ${punkte}
+        <rect x="${klar}" y="0" width="${W - klar}" height="150" fill="url(#gnebel)" pointer-events="none"/>
+        <g pointer-events="none">${nebel}</g>
+      </svg></div><div class="ginfo" id="ginfo">${gelesen.length ? `Erzählt: <b>${gelesen.length}</b> von ${r.st.length} Zeiten` : "Noch liegt alles im Nebel."}</div>`;
+  }
+  function gimNebelInfo(r, i) {
+    if (i === "n") return "<b>Im Nebel</b><small>Was hier geschah, erzählt erst der nächste Band.</small>";
+    const [b, k] = String(i).split("."), s = r.st.filter(isDone)[+b], g = s.gimmick || {};
+    if (k !== undefined) { const rb = (g.rueckblenden || [])[+k] || {}; return `<b>Rückblende · ${esc(rb.zeit || "")}</b><small>aus „${esc(s.title)}“</small>${rb.text ? `<i>${esc(rb.text)}</i>` : ""}`; }
+    return `<b>${esc(g.zeit || "")}${g.epoche ? " · " + esc(g.epoche) : ""}</b><small>„${esc(s.title)}“${g.ort ? " · " + esc(g.ort) : ""}</small>${g.lied ? `<i>Man singt davon: „${esc(g.lied)}“</i>` : ""}`;
+  }
   function gimmickBind() {
     const box = document.querySelector(".gim");
     if (!box) return;
@@ -1361,7 +1434,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       if (p && !prefs.passOffen) { prefs.passOffen = true; save("prefs", prefs); box.querySelector(".pdeckel").style.transform = "scaleX(0)"; box.querySelector(".gsub").textContent = "Ein Stempel für jedes Land, das du mit ihnen bereist hast. Tippe auf einen Stempel."; return; }
       if (!t) return;
       box.querySelectorAll(".gsel").forEach(x => x.classList.remove("gsel")); t.classList.add("gsel");
-      info.innerHTML = (r.id === "asmussen" ? gimSchirmInfo : gimPassInfo)(r, t.dataset.g);
+      e.stopPropagation(); info.innerHTML = GIM_INFO[r.id](r, t.dataset.g);
     };
   }
   function karteHTML(r) {

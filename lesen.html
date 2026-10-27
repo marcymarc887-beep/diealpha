@@ -1443,6 +1443,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* Die vergessene Fahrt: Querschnitt der Arche (Bug oben, Kessel unten); je gelesenem Band leuchten seine Decks auf, daneben Platz für den Zielplaneten */
   const ARCHE_DECKS = [["bruecke", "Brückendeck", 26], ["archiv", "Archiv der Stillen", 20], ["ring1", "Ring 1", 30], ["ring2", "Ring 2", 30], ["kuppeln", "Die Kuppeln", 34],
     ["wildring", "Der Wildring", 34], ["mittelring", "Mittelring & Fünfspeich", 30], ["ring6", "Ring 6", 30], ["ring7", "Ring 7", 30], ["kessel", "Der Kessel", 30]];
+  const ARCHE_EXTRA = [["achse", "Die Achse"], ["huelle", "Die Außenhülle · Teleskop „Auge“"]];   // keine Stockwerke: Linie durch die Mitte, Umriss ums Schiff (1405)
   function gimArche(r, gelesen, naechster) {
     const bekannt = {}; gelesen.forEach((s, i) => ((s.gimmick || {}).decks || []).forEach(d => { if (!(d in bekannt)) bekannt[d] = i; }));
     let y = 40, decks = "";
@@ -1454,6 +1455,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         <text x="${112 + w / 2 + 8}" y="${y + h / 2 + 2}" fill="${an ? "#bfe8dc" : "#4a4858"}" font-size="9" font-family="Inter, sans-serif">${an ? esc(name) : "· · ·"}</text></g>`;
       y += h;
     });
+    const achse = "achse" in bekannt ? `<g data-g="${bekannt.achse}:achse" tabindex="0"><path d="M112,18 V${y + 4}" stroke="#7fd8c8" stroke-width="2.2" stroke-dasharray="1 5" stroke-linecap="round" opacity=".9"/>
+        ${[0.18, 0.41, 0.63, 0.86].map((f, j) => `<circle cx="${112 + (j % 2 ? 5 : -5)}" cy="${40 + f * (y - 40)}" r="1.6" fill="#e8f4d0" opacity=".8"/>`).join("")}
+        <rect x="104" y="16" width="16" height="${y - 12}" fill="transparent"/><text x="124" y="26" fill="#bfe8dc" font-size="8" font-family="Inter, sans-serif">Achse · schwerelos</text></g>` : "";
+    const huelle = "huelle" in bekannt ? `<g data-g="${bekannt.huelle}:huelle" tabindex="0">
+        <rect x="42" y="22" width="140" height="${y - 14}" rx="22" fill="none" stroke="#7fd8c8" stroke-width="1.2" stroke-dasharray="6 3" opacity=".75"/>
+        <g transform="translate(30 ${Math.round(22 + (y - 14) / 2)})"><path d="M12,-5 L2,-8 V8 L12,5 z" fill="#1d3a3a" stroke="#7fd8c8" stroke-width="1"/><circle cx="2" cy="0" r="5" fill="#0c0b12" stroke="#7fd8c8" stroke-width="1.2"/><circle cx="2" cy="0" r="2" fill="#e8f4d0"/></g>
+        <text x="8" y="${Math.round(22 + (y - 14) / 2) + 20}" fill="#bfe8dc" font-size="8" font-family="Inter, sans-serif">Auge</text></g>` : "";
     const planet = `<g opacity=".7"><circle cx="270" cy="110" r="30" fill="none" stroke="#6a6680" stroke-width="1.2" stroke-dasharray="3 4"/>
       <text x="270" y="114" text-anchor="middle" fill="#6a6680" font-size="18" font-family="Cormorant Garamond, serif">?</text>
       <text x="270" y="156" text-anchor="middle" fill="#6a6680" font-size="8" font-family="Inter, sans-serif" letter-spacing="1">ZIEL UNBEKANNT</text></g>`;
@@ -1463,13 +1471,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         ${Array.from({ length: 30 }, (_, k) => `<circle cx="${(k * 97) % 316 + 2}" cy="${(k * 61) % (y + 46) + 2}" r="${k % 4 ? .6 : 1}" fill="#cfd8ff" opacity=".45"/>`).join("")}
         <path d="M112,16 V${y + 30}" stroke="#2a2836" stroke-width="5"/>
         <path d="M112,${y + 2} l-22,26 h44 z" fill="#2a1a14" stroke="#4a2a1a"/>${gelesen.length ? `<ellipse cx="112" cy="${y + 32}" rx="16" ry="6" fill="rgba(255,140,60,.35)"/>` : ""}
-        ${decks}${planet}
+        ${huelle}${decks}${achse}${planet}
         <text x="112" y="14" text-anchor="middle" fill="#5a5870" font-size="8" font-family="Inter, sans-serif" letter-spacing="2">BUG</text>
         <text x="112" y="${y + 46}" text-anchor="middle" fill="#5a5870" font-size="8" font-family="Inter, sans-serif" letter-spacing="2">HECK</text>
-      </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Bekannte Decks: <b>${Object.keys(bekannt).length}</b> von ${ARCHE_DECKS.length}` : "Lies den ersten Band, dann gehen die ersten Lichter an."}</div>`;
+      </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Bekannte Decks: <b>${Object.keys(bekannt).length}</b> von ${ARCHE_DECKS.length + ARCHE_EXTRA.length}` : "Lies den ersten Band, dann gehen die ersten Lichter an."}</div>`;
   }
   function gimArcheInfo(r, i) {
-    const [b, d] = String(i).split(":"), s = r.st.filter(isDone)[+b], g = s.gimmick || {}, deck = ARCHE_DECKS.find(x => x[0] === d);
+    const [b, d] = String(i).split(":"), s = r.st.filter(isDone)[+b], g = s.gimmick || {}, deck = ARCHE_DECKS.concat(ARCHE_EXTRA).find(x => x[0] === d);
     return `<b>${esc(deck ? deck[1] : "")}</b>${g.fj ? " · Fahrtjahr " + esc(g.fj) : ""}<small>Entdeckt in „${esc(s.title)}“ (Band ${s.reihe.teil})</small>${g.notiz ? `<i>${esc(g.notiz)}</i>` : ""}`;
   }
   /* Kometenblut: Sternenroute der Elster entlang der Perlenschnur, dazu Zoras Schuldenzähler (Stand nach dem zuletzt gelesenen Band) */

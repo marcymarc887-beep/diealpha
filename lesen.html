@@ -147,10 +147,12 @@ body.reading .tabbar { display: none; }
 .rbar .t small { font-size: 12px; color: var(--rmut); }
 .rbar button, .rbar a { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: inherit; flex: none; }
 .rbar svg { width: 22px; height: 22px; }
-.rbar .vip { width: 46px; height: 44px; gap: 0; align-content: center; }
-.rbar .vip svg { width: 24px; height: 24px; }
-.rbar .vip span { font: 600 7.5px/1 Inter, sans-serif; letter-spacing: .4px; text-transform: uppercase; color: #e8b44f; white-space: nowrap; margin-top: 1px; }
-.reader:not([data-theme="dunkel"]) .rbar .vip span { color: #9a6b12; }
+/* VIP Zugang wie bei Galatea (seit 27.10.2026): rundes Symbol am linken Rand auf ~60 % Höhe, Schildchen darunter, beim Scrollen leicht durchsichtig */
+.vipf { position: fixed; left: 4px; top: 60%; z-index: 38; display: grid; justify-items: center; gap: 2px; transition: opacity .35s; -webkit-tap-highlight-color: transparent; }
+.vipf .vr { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2a2232, #0f0d14); border: 1.5px solid #e8b44f; box-shadow: 0 3px 12px rgba(0,0,0,.55), 0 0 10px rgba(232,180,79,.25); --rbg: #0f0d14; }
+.vipf .vr svg { width: 26px; height: 26px; }
+.vipf .vs { font: 700 7.5px/1 Inter, sans-serif; letter-spacing: .4px; text-transform: uppercase; color: #fff; background: #c2185b; border-radius: 4px; padding: 3px 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.vipf.still { opacity: .4; }
 .rprog { position: fixed; left: 0; top: 0; height: 3px; background: #f2c230; z-index: 41; width: 0; }
 .rfuss { position: fixed; left: 0; right: 0; bottom: 0; z-index: 39; display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
   padding: 7px 16px calc(7px + var(--safe-b)); background: var(--rbg); color: var(--rmut); font: 12px/1.3 Inter, sans-serif; border-top: 1px solid rgba(127,127,127,.12); }
@@ -1764,9 +1766,9 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <button id="kapListe" aria-label="Kapitelübersicht"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <button id="aa" aria-label="Darstellung"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l5-14 5 14M5.8 14h6.4M15 19l3.5-9 3.5 9M16 16.5h5"/></svg></button>
       <div class="t"><b>${esc(st.title)}</b><small>Kapitel ${ch + 1}: ${esc(c.title)}</small></div>
-      <button class="vip" id="vipBtn" aria-label="VIP Zugang">${vipIcon}<span>VIP Zugang</span></button>
       <a href="#/story/${st.id}" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
     </div>
+    <button type="button" class="vipf" id="vipBtn" aria-label="VIP Zugang"><span class="vr">${vipIcon}</span><span class="vs">VIP Zugang</span></button>
     <div class="rfuss" id="rfuss"><span>Kapitel ${ch + 1} von ${n}: ${esc(c.title)}</span><span id="rproz">0%</span></div>
       <div class="wrap">
         <div class="kick">Kapitel ${ch + 1}</div><h1>${esc(c.title)}</h1>${buchKarten(st, ch)}
@@ -3174,7 +3176,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       fbBind(id);
       fbbBind(id);
       kfbBind();
-      const bar = document.getElementById("rbar"), prog = document.getElementById("rprog"), proz = document.getElementById("rproz");
+      const bar = document.getElementById("rbar"), prog = document.getElementById("rprog"), proz = document.getElementById("rproz"), vipB = document.getElementById("vipBtn");
+      let vipT = 0;
       document.querySelector("#reader .txt").addEventListener("click", e => { if (!e.target.closest("a, button, .gl, input, textarea")) bar.classList.toggle("hide"); });
       let lastY = 0, t = 0;
       const self = onScroll = () => {
@@ -3182,6 +3185,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         const ratio = max > 0 ? Math.min(1, y / max) : 1;
         prog.style.width = (ratio * 100) + "%";
         proz.textContent = Math.round(ratio * 100) + "%";
+        vipB.classList.add("still"); clearTimeout(vipT); vipT = setTimeout(() => vipB.classList.remove("still"), 900);
         bar.classList.toggle("hide", y > lastY && y > 120);
         lastY = y;
         schlaf(); lastMove = Date.now();

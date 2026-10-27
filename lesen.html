@@ -764,8 +764,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     let changed = false;
     if (!r || !r.a) return false;
     Object.entries(r.a).forEach(([id, x]) => { const l = ziel.a[id]; if (!l || (x.t || 0) > (l.t || 0)) { ziel.a[id] = x; changed = true; } });
-    if ((r.sent || 0) > (ziel.sent || 0)) { ziel.sent = r.sent; changed = true; }
-    if (r.gelesen && (!ziel.gelesen || r.gelesen < ziel.gelesen)) { ziel.gelesen = r.gelesen; changed = true; }   // Brief: erstes Öffnen
+    // Ausgaben (seit 27.10.2026, Neuigkeiten): neuere Ausgabe gewinnt, innerhalb einer Ausgabe wie bisher
+    const ra = r.sentAusgabe || 1, za = ziel.sentAusgabe || 1;
+    if (ra > za || (ra === za && (r.sent || 0) > (ziel.sent || 0))) { ziel.sent = r.sent; if (r.sentAusgabe) ziel.sentAusgabe = r.sentAusgabe; changed = true; }
+    const rg = r.gelesenAusgabe || 1, zg = ziel.gelesenAusgabe || 1;
+    if (r.gelesen && (rg > zg || (rg === zg && (!ziel.gelesen || r.gelesen < ziel.gelesen)))) { ziel.gelesen = r.gelesen; if (r.gelesenAusgabe) ziel.gelesenAusgabe = r.gelesenAusgabe; changed = true; }   // Brief: erstes Öffnen
     return changed;
   }
   const mergeFragen = r => mergeAnt(fragen, r);
@@ -1293,7 +1296,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     }
     if (sb && adventSichtbar) h += `<a class="fqcard" href="#/advent"><span class="fqi">🕯</span><span><b>Adventskalender${istAdmin ? " (Vorschau)" : ""}</b><span>${istAdmin ? "Alle Türen im Testmodus + Übersicht" : "Jeden Tag im Dezember ein Türchen"}</span></span><span class="fqgo">Öffnen ›</span></a>`;
     if (sb && briefFuer) {
-      const b = BB(), neu = !b.gelesen;
+      const b = { sent: brSent() }, neu = !brGel();
       h += `<a class="fqcard" href="#/brief"${neu ? ' style="box-shadow:0 0 26px rgba(232,180,79,.55)"' : ""}><span class="fqi">✉︎</span><span><b>${esc(BC.name || "Für meine Herrin")}${neu ? '<span class="nbadge">Neu für dich</span>' : ""}</b><span>${b.sent ? "Danke! Deine Antworten sind angekommen – antippen zum Ändern" : neu ? "Etwas Neues von deinem Sklaven – bitte öffnen" : "Von deinem Sklaven"}</span></span><span class="fqgo">${b.sent ? "Ändern" : "Öffnen"} ›</span></a>`;
     } else if (sb) {
       const n = Object.entries(fragen.a).filter(([k, x]) => !k.endsWith("_r") && fqHat(x.v)).length;
@@ -1608,6 +1611,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* ---------- Brief „Für meine Herrin“: Inhalt privat bei Supabase (brief.json), Abfragen mitten im Brief ---------- */
   let BR = null, BRA = null, brT = 0, NBR = null;
   const BKEY = BC.key || "brief", BB = () => (BKEY === "neuig" ? neuig : brief);     // welcher Text gerade aktiv ist
+  /* Ausgaben (seit 27.10.2026): „Ausgabe: N“ im Kopf von Neuigkeiten_Herrin.md → BC.ausgabe; abgeschickt/geöffnet gelten je Ausgabe */
+  const AUSG = BC.ausgabe || 1;
+  const brSent = () => (BB().sentAusgabe || 1) === AUSG ? BB().sent : 0;
+  const brGel = () => (BB().gelesenAusgabe || 1) === AUSG ? BB().gelesen : 0;
   const brV = id => (BB().a[id] || {}).v;
   function brSet(id, v) { BB().a[id] = { v, t: Date.now() }; save(BKEY, BB()); const m = document.getElementById("brSave"); if (m) m.textContent = "Gespeichert ✓"; }
   function brItems(doc) { doc = doc || BR; return doc ? doc.parts.filter(p => p.type === "q").flatMap(p => p.items) : []; }
@@ -1620,7 +1627,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return h + `<div class="opts">${f.opts.map((o, i) => `<button type="button" data-bq="${f.id}" data-i="${i}" class="${sel.includes(o) ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
   }
   function brEnd() {
-    return BB().sent ? `<div class="fqdank">Danke, Herrin.</div><p>Abgeschickt am ${new Date(BB().sent).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}. Du kannst alles jederzeit ändern – es speichert sich von selbst.</p><button type="button" class="btn" id="brSend">Erneut abschicken</button>`
+    return brSent() ? `<div class="fqdank">Danke, Herrin.</div><p>Abgeschickt am ${new Date(brSent()).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}. Du kannst alles jederzeit ändern – es speichert sich von selbst.</p><button type="button" class="btn" id="brSend">Erneut abschicken</button>`
       : `<button type="button" class="btn" id="brSend">Abschicken</button>`;
   }
   function viewBrief() {
@@ -1644,15 +1651,15 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const box = document.getElementById("br");
     if (!box || !sb) return;
     if (!BR) { loadBrief(BC.datei || "brief.json", d => { BR = d; }); return; }
-    if (briefFuer && !BB().gelesen) { BB().gelesen = Date.now(); save(BKEY, BB()); ereignis(BKEY + "_gelesen", BC.gelesen || "Deine Herrin hat deinen Brief geöffnet"); route(); return; }
+    if (briefFuer && !brGel()) { BB().gelesen = Date.now(); BB().gelesenAusgabe = AUSG; save(BKEY, BB()); ereignis(BKEY + "_gelesen", BC.gelesen || "Deine Herrin hat deinen Brief geöffnet", { ausgabe: AUSG }); route(); return; }
     const byF = Object.fromEntries(brItems().map(f => [f.id, f]));
     box.onclick = async e => {
       const b = e.target.closest("button");
       if (!b) return;
       if (document.activeElement && document.activeElement.tagName === "TEXTAREA") document.activeElement.blur();
       if (b.id === "brSend") {
-        BB().sent = Date.now(); save(BKEY, BB());
-        ereignis(BKEY, BC.gesendet || "Deine Herrin hat deinen Brief beantwortet");
+        BB().sent = Date.now(); BB().sentAusgabe = AUSG; save(BKEY, BB());
+        ereignis(BKEY, BC.gesendet || "Deine Herrin hat deinen Brief beantwortet", { ausgabe: AUSG });
         const m = document.getElementById("brSave"); m.textContent = "Wird gesendet …";
         const ok = navigator.onLine && await pushNow();
         m.textContent = ok ? "Gesendet ✓" : "Offline – wird später übertragen";
@@ -2113,7 +2120,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     }
     if (e.art === "neuig" || e.art === "neuig_gelesen") {
       const b = d.neuig || {}, a = b.a || {};
-      let h = zeile("Zuerst geöffnet", z(b.gelesen)) + zeile("Abgeschickt", b.sent ? z(b.sent) : "noch nicht");
+      let h = zeile("Ausgabe", b.gelesenAusgabe || 1) + zeile("Zuerst geöffnet", z(b.gelesen)) + zeile("Abgeschickt", b.sent && (b.sentAusgabe || 1) === (b.gelesenAusgabe || 1) ? z(b.sent) : "noch nicht");
       if (NBR) h += brItems(NBR).filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q || f.label || f.id, wert(a[f.id].v))).join("");
       return h;
     }

@@ -147,8 +147,8 @@ body.reading .tabbar { display: none; }
 .rbar .t small { font-size: 12px; color: var(--rmut); }
 .rbar button, .rbar a { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: inherit; flex: none; }
 .rbar svg { width: 22px; height: 22px; }
-/* VIP Zugang wie bei Galatea (seit 27.10.2026): rundes Symbol am linken Rand auf ~60 % Höhe, Schildchen darunter, beim Scrollen leicht durchsichtig */
-.vipf { position: fixed; left: 4px; top: 60%; z-index: 38; display: grid; justify-items: center; gap: 2px; transition: opacity .35s; -webkit-tap-highlight-color: transparent; }
+/* VIP Zugang wie bei Galatea (seit 27.10.2026): rundes Symbol am linken Rand, Mitte auf ~67 % Höhe, Schildchen darunter, beim Scrollen leicht durchsichtig */
+.vipf { position: fixed; left: 4px; top: calc(67% - 29px); z-index: 38; display: grid; justify-items: center; gap: 2px; transition: opacity .35s; -webkit-tap-highlight-color: transparent; }
 .vipf .vr { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2a2232, #0f0d14); border: 1.5px solid #e8b44f; box-shadow: 0 3px 12px rgba(0,0,0,.55), 0 0 10px rgba(232,180,79,.25); --rbg: #0f0d14; }
 .vipf .vr svg { width: 26px; height: 26px; }
 .vipf .vs { font: 700 7.5px/1 Inter, sans-serif; letter-spacing: .4px; text-transform: uppercase; color: #fff; background: #c2185b; border-radius: 4px; padding: 3px 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.4); }

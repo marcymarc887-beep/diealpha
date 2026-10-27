@@ -137,22 +137,51 @@ body.showp .chip.ptoggle .aus { display: inline; }
 /* ---------- Leseansicht ---------- */
 body.reading .tabbar { display: none; }
 .fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
-.rbar { position: fixed; left: 0; right: 0; top: 0; z-index: 40; background: rgba(12,11,16,.94); backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line); padding: calc(8px + var(--safe-t)) 8px 8px; display: flex; align-items: center; gap: 6px; transition: transform .25s; }
+/* Leseansicht wie Galatea (seit 27.10.2026): oben ☰ Aa · Titel + Kapitel · VIP ✕, gelber Balken; unten „Kapitel X von Y: Name“ + Prozent */
+.rbar { position: fixed; left: 0; right: 0; top: 0; z-index: 40; background: var(--rbg); color: var(--rfg);
+  border-bottom: 1px solid rgba(127,127,127,.18); padding: calc(6px + var(--safe-t)) 6px 6px; display: flex; align-items: center; gap: 2px; transition: transform .25s; }
 .rbar.hide { transform: translateY(-110%); }
-.rbar .t { flex: 1; text-align: center; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rbar button, .rbar a { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; }
+.rbar .t { flex: 1; min-width: 0; text-align: center; line-height: 1.25; }
+.rbar .t b, .rbar .t small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rbar .t b { font-size: 14px; font-weight: 600; }
+.rbar .t small { font-size: 12px; color: var(--rmut); }
+.rbar button, .rbar a { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: inherit; flex: none; }
 .rbar svg { width: 22px; height: 22px; }
-.rprog { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); z-index: 41; width: 0; }
+.rbar .vip { width: 46px; height: 44px; gap: 0; align-content: center; }
+.rbar .vip svg { width: 24px; height: 24px; }
+.rbar .vip span { font: 600 7.5px/1 Inter, sans-serif; letter-spacing: .4px; text-transform: uppercase; color: #e8b44f; white-space: nowrap; margin-top: 1px; }
+.reader:not([data-theme="dunkel"]) .rbar .vip span { color: #9a6b12; }
+.rprog { position: fixed; left: 0; top: 0; height: 3px; background: #f2c230; z-index: 41; width: 0; }
+.rfuss { position: fixed; left: 0; right: 0; bottom: 0; z-index: 39; display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
+  padding: 7px 16px calc(7px + var(--safe-b)); background: var(--rbg); color: var(--rmut); font: 12px/1.3 Inter, sans-serif; border-top: 1px solid rgba(127,127,127,.12); }
+.rfuss span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rhell { position: fixed; inset: 0; background: #000; pointer-events: none; z-index: 38; opacity: 0; }
+.kdr { position: fixed; top: 0; bottom: 0; left: 0; z-index: 61; width: min(330px, 86vw); background: var(--bg2); transform: translateX(-102%); transition: transform .25s;
+  overflow-y: auto; padding: calc(14px + var(--safe-t)) 0 calc(14px + var(--safe-b)); box-shadow: 4px 0 24px rgba(0,0,0,.35); }
+.kdr.open { transform: none; }
+.kdr h4 { margin: 4px 18px 10px; font-size: 13px; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.kdr a { display: flex; gap: 10px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line); font-size: 15px; }
+.kdr a b { flex: 1; font-weight: 500; }
+.kdr a i { font-style: normal; color: var(--accent); width: 16px; text-align: center; }
+.kdr a.cur { background: rgba(232,180,79,.13); }
+.kdr a.cur b { font-weight: 700; color: var(--accent); }
 .reader { --fs: 19px; --ff: Literata, Georgia, serif; --rbg: #0f0e13; --rfg: #e9e5ef; --rmut: #8f8a9c;
-  background: var(--rbg); color: var(--rfg); min-height: var(--vh100, 100vh); padding: calc(78px + var(--safe-t)) 0 calc(40px + var(--safe-b)); }
+  background: var(--rbg); color: var(--rfg); min-height: var(--vh100, 100vh); padding: calc(78px + var(--safe-t)) 0 calc(64px + var(--safe-b)); }
 .reader[data-theme="sepia"] { --rbg: #f3e9d7; --rfg: #3b2f22; --rmut: #8a7a64; }
 .reader[data-theme="hell"] { --rbg: #fbfaf8; --rfg: #1d1b21; --rmut: #7c7784; }
+.reader[data-theme="mint"] { --rbg: #dcefe5; --rfg: #1c2b24; --rmut: #5b7468; }
 .reader[data-font="sans"] { --ff: Inter, system-ui, sans-serif; }
+.reader[data-font="bookish"] { --ff: "Cormorant Garamond", Georgia, serif; }
+.reader[data-font="bookish"] .txt { font-size: calc(var(--fs) * 1.1); }
+.seg .sw.rund { width: 34px; height: 34px; border-radius: 50%; display: block; margin: 0 auto; border: 1px solid rgba(127,127,127,.4); }
+.seg button.rund { padding: 8px 0; }
+.rsl { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.rsl input { flex: 1; accent-color: var(--accent); }
+.rsl small { font-size: 13px; color: var(--muted); }
 .reader .wrap { max-width: 680px; padding: 0 22px; }
 .reader .kick { text-align: center; color: var(--rmut); font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
 .reader h1 { text-align: center; font-family: "Cormorant Garamond", serif; font-size: calc(var(--fs) * 1.9); line-height: 1.05; margin: 0 0 34px; }
-.reader .txt { font-family: var(--ff); font-size: var(--fs); line-height: 1.72; }
+.reader .txt { font-family: var(--ff); font-size: var(--fs); line-height: var(--lh, 1.72); }
 .reader .txt p { margin: 0 0 1.05em; hyphens: auto; -webkit-hyphens: auto; }
 .reader .txt .br { text-align: center; color: var(--rmut); letter-spacing: .6em; margin: 1.6em 0; }
 .reader .txt .quote { border-left: 3px solid var(--accent); padding: .3em 0 .3em 1em; margin: 1.3em 0; font-size: .92em; color: var(--rfg); opacity: .92; }
@@ -167,6 +196,62 @@ body.reading .tabbar { display: none; }
 .rnav .btn { flex: 1; }
 .reader[data-theme="sepia"] .btn.ghost, .reader[data-theme="hell"] .btn.ghost { background: rgba(0,0,0,.07); color: var(--rfg); }
 
+/* ---------- Sammelkarten „VIP Zugang“ (seit 27.10.2026): Holo beim Neigen, Antippen dreht um ---------- */
+.vipov { position: fixed; inset: 0; z-index: 70; background: radial-gradient(circle at 50% 30%, #2b1e12, #07060a 72%); overflow-y: auto;
+  padding: calc(54px + var(--safe-t)) 16px calc(30px + var(--safe-b)); display: none; -webkit-tap-highlight-color: transparent; }
+.vipov.open { display: block; animation: vipIn .35s ease; }
+@keyframes vipIn { from { opacity: 0; } }
+.vipov .zu { position: fixed; top: calc(10px + var(--safe-t)); right: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; z-index: 2; }
+.vipov .hint { text-align: center; color: rgba(255,255,255,.55); font-size: 12px; margin-top: 14px; }
+.vk { --g1: #f7e08a; --g2: #c9962c; --g3: #8a5f12; --ink: #2a1d0b; --pap: #f8efd9; --pap2: #ead9b0; --akz: #9a6b12;
+  width: min(360px, 100%); margin: 0 auto; perspective: 1400px; }
+.vk[data-r="silber"] { --g1: #f2f5f8; --g2: #a9b2bc; --g3: #5c6670; --ink: #1d2329; --pap: #eef1f4; --pap2: #d3d9df; --akz: #4b5866; }
+.vk .in { position: relative; transition: transform .7s cubic-bezier(.3,.7,.3,1); transform-style: preserve-3d; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.vk.um .in { transform: rotateX(var(--rx, 0deg)) rotateY(calc(180deg + var(--ry, 0deg))); }
+.vk .vs, .vk .rs { border-radius: 18px; padding: 10px; background: linear-gradient(135deg, var(--g1), var(--g2) 40%, var(--g3) 70%, var(--g2)); backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  box-shadow: 0 18px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.3); }
+.vk .rs { position: absolute; inset: 0; transform: rotateY(180deg); display: grid; place-items: center; }
+.vk .body { position: relative; border-radius: 10px; background: linear-gradient(170deg, var(--pap), var(--pap2)); color: var(--ink); padding: 10px 12px 12px; overflow: hidden; }
+.vk .kopf { display: flex; align-items: center; gap: 8px; }
+.vk .kopf h2 { flex: 1; margin: 0; font: 700 22px/1.1 "Cormorant Garamond", Georgia, serif; }
+.vk .kopf .hz { font: 700 12px Inter, sans-serif; color: #b3122e; white-space: nowrap; }
+.vk .kopf .hz b { font-size: 20px; }
+.vk .kopf svg { width: 30px; height: 30px; flex: none; }
+.vk .typ { font: 600 10.5px Inter, sans-serif; letter-spacing: .8px; text-transform: uppercase; color: var(--akz); margin: 1px 0 6px; }
+.vk .bild { position: relative; border: 4px solid; border-image: linear-gradient(135deg, var(--g1), var(--g3), var(--g1)) 1; aspect-ratio: 4 / 3; overflow: hidden; background: #000; }
+.vk .bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vk .bild .eck { position: absolute; width: 26px; height: 26px; opacity: .9; }
+.vk .unter { text-align: center; font: italic 12.5px Literata, Georgia, serif; color: var(--akz); margin: 6px 0 8px; }
+.vk .wt { display: grid; grid-template-columns: auto 1fr 28px; align-items: center; gap: 3px 8px; font: 12px Inter, sans-serif; margin-bottom: 8px; }
+.vk .wt .pk { display: flex; gap: 3px; position: relative; min-width: 0; }
+.vk .wt .pk i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--g3); flex: none; }
+.vk .wt .pk i.v { background: radial-gradient(circle at 35% 35%, var(--g1), var(--g2) 60%, var(--g3)); }
+.vk .wt .pk i.x { background: radial-gradient(circle at 35% 35%, #ff9aa8, #d4143a 60%, #7d0a1f); border-color: #7d0a1f; position: absolute; top: 0; animation: vipX 1.1s ease-in-out infinite alternate; box-shadow: 0 0 6px rgba(212,20,58,.7); }
+@keyframes vipX { from { transform: translateY(0) scale(1); } to { transform: translateY(-2px) scale(1.18); } }
+.vk .wt .zahl { font-weight: 700; text-align: right; position: relative; z-index: 2; }
+.vk .wt .zahl.ueber { color: #fff; background: #d4143a; border-radius: 9px; padding: 0 4px; text-align: center; animation: vipBlink .9s steps(2) infinite; }
+@keyframes vipBlink { 50% { opacity: .35; } }
+.vk .wt small { grid-column: 1 / -1; margin: -3px 0 2px; font-style: italic; color: var(--akz); font-size: 10.5px; }
+.vk .fk { border-top: 1px solid rgba(0,0,0,.18); padding-top: 7px; margin-top: 4px; font: 12.5px/1.4 Literata, Georgia, serif; }
+.vk .fk h5 { margin: 0 0 2px; font: 700 11px Inter, sans-serif; letter-spacing: .6px; text-transform: uppercase; color: #b3122e; }
+.vk .fk h5 span { color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 13px; }
+.vk .att { margin: 0; padding: 0; list-style: none; }
+.vk .att li { padding: 4px 0; border-bottom: 1px dashed rgba(0,0,0,.15); }
+.vk .att li b { font-family: Inter, sans-serif; font-size: 12.5px; }
+.vk .lnk { display: block; width: 100%; margin: 9px 0 4px; padding: 8px 10px; border-radius: 9px; background: rgba(0,0,0,.07); border: 1px solid rgba(0,0,0,.15);
+  font: 600 13px Inter, sans-serif; color: var(--ink); text-align: left; }
+.vk .lnk span { color: #b3122e; text-decoration: underline; }
+.vk .kt { font: italic 12px/1.45 Literata, Georgia, serif; border: 1px solid rgba(0,0,0,.18); border-radius: 6px; padding: 6px 8px; margin-top: 8px; background: rgba(255,255,255,.35); }
+.vk .fuss { text-align: center; font: 600 9.5px Inter, sans-serif; letter-spacing: .5px; color: var(--akz); margin-top: 8px; text-transform: uppercase; }
+.vk .holo { position: absolute; inset: 0; border-radius: 18px; pointer-events: none; mix-blend-mode: color-dodge; opacity: .55;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,0,140,.35) 32%, rgba(255,230,0,.35) 40%, rgba(0,255,190,.35) 48%, rgba(0,140,255,.35) 56%, rgba(190,0,255,.3) 64%, transparent 76%),
+    repeating-linear-gradient(55deg, rgba(255,255,255,.08) 0 2px, transparent 2px 7px);
+  background-size: 250% 250%, 100% 100%; background-position: var(--hx, 50%) var(--hy, 50%), 0 0; }
+.vk.glanz .holo { animation: vipGlanz 5s ease-in-out infinite alternate; }
+@keyframes vipGlanz { from { background-position: 0% 30%, 0 0; } to { background-position: 100% 70%, 0 0; } }
+.vk[data-r="silber"] .holo { opacity: .3; }
+.vk .wap { width: 78%; position: sticky; top: 30%; }
+.vk .rs { align-items: start; padding-top: 40%; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 6px, transparent 6px 14px), linear-gradient(135deg, var(--g1), var(--g2) 40%, var(--g3) 70%, var(--g2)); }
 /* ---------- Einstellungs-Sheet ---------- */
 .reader .txt .gl { text-decoration: underline dotted rgba(232,180,79,.75); text-decoration-thickness: 1.5px; text-underline-offset: .22em; cursor: pointer; }
 .glk { position: fixed; z-index: 55; max-width: min(300px, calc(100vw - 32px)); background: #f6edd6; color: #3a2e1c; border-radius: 3px 3px 10px 3px;
@@ -1023,6 +1108,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   function fmtDate(ms) { try { return new Date(ms).toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return ""; } }
 
+  const vipIcon = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#e8b44f"/><circle cx="21" cy="12" r="10" style="fill:var(--rbg)"/><path d="M7 26.5l3-4 2.2 2.6L16 19l3.8 6.1 2.2-2.6 3 4" fill="none" stroke="#e8b44f" stroke-width="1.6" stroke-linejoin="round"/></svg>';
   const moonIcon = '<svg viewBox="0 0 32 32"><defs><radialGradient id="mi" cx="40%" cy="35%"><stop offset="0" stop-color="#fff3d1"/><stop offset="1" stop-color="#e8b44f"/></radialGradient></defs><circle cx="16" cy="16" r="12" fill="url(#mi)"/><circle cx="21" cy="12" r="10" fill="#0c0b10"/></svg>';
 
   /* ---------- Cover (generiert) ---------- */
@@ -1377,13 +1463,16 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     ch = Math.min(Math.max(ch, 0), st.chapters.length - 1);
     const c = st.chapters[ch];
     const n = st.chapters.length;
-    return `<div class="rprog" id="rprog"></div>
+    return `<div class="reader" id="reader" data-theme="${prefs.theme}" data-font="${prefs.font}" style="--fs:${prefs.fs}px;--lh:${prefs.lh || 1.72}">
+    <div class="rprog" id="rprog"></div><div class="rhell" id="rhell" style="opacity:${1 - (prefs.hell || 1)}"></div>
     <div class="rbar" id="rbar">
-      <a href="#/story/${st.id}" aria-label="Zurück"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></a>
-      <div class="t">${esc(st.title)} · Kapitel ${ch + 1}</div>
+      <button id="kapListe" aria-label="Kapitelübersicht"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <button id="aa" aria-label="Darstellung"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l5-14 5 14M5.8 14h6.4M15 19l3.5-9 3.5 9M16 16.5h5"/></svg></button>
+      <div class="t"><b>${esc(st.title)}</b><small>Kapitel ${ch + 1}: ${esc(c.title)}</small></div>
+      <button class="vip" id="vipBtn" aria-label="VIP Zugang">${vipIcon}<span>VIP Zugang</span></button>
+      <a href="#/story/${st.id}" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
     </div>
-    <div class="reader" id="reader" data-theme="${prefs.theme}" data-font="${prefs.font}" style="--fs:${prefs.fs}px">
+    <div class="rfuss" id="rfuss"><span>Kapitel ${ch + 1} von ${n}: ${esc(c.title)}</span><span id="rproz">0%</span></div>
       <div class="wrap">
         <div class="kick">Kapitel ${ch + 1}</div><h1>${esc(c.title)}</h1>${buchKarten(st, ch)}
         <div class="txt">${c.blocks.map(blockHTML).join("")}</div>${kfbHTML(st, ch)}
@@ -2452,17 +2541,22 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   });
 
   /* ---------- Einstellungen ---------- */
+  /* Aa wie Galatea (seit 27.10.2026): Design, Schriftart, Schriftgröße, Zeilenabstand, Helligkeit – Standard Dunkel */
+  function readerPrefs() {
+    const r = document.getElementById("reader");
+    if (r) { r.dataset.theme = prefs.theme; r.dataset.font = prefs.font; r.style.setProperty("--fs", prefs.fs + "px"); r.style.setProperty("--lh", prefs.lh || 1.72); }
+    const hl = document.getElementById("rhell"); if (hl) hl.style.opacity = 1 - (prefs.hell || 1);
+  }
   function openSheet() {
     const sh = document.getElementById("sheet"), bg = document.getElementById("sheetBg");
-    const sizes = [16, 19, 22, 25];
-    sh.innerHTML = `<h4>Schriftgröße</h4><div class="seg">${sizes.map((s, i) => `<button data-fs="${s}" class="${prefs.fs === s ? "on" : ""}" style="font-size:${13 + i * 2}px">Aa</button>`).join("")}</div>
-      <h4>Hintergrund</h4><div class="seg">
-        <button data-th="dunkel" class="${prefs.theme === "dunkel" ? "on" : ""}"><span class="sw" style="background:#0f0e13"></span>Dunkel</button>
-        <button data-th="sepia" class="${prefs.theme === "sepia" ? "on" : ""}"><span class="sw" style="background:#f3e9d7"></span>Sepia</button>
-        <button data-th="hell" class="${prefs.theme === "hell" ? "on" : ""}"><span class="sw" style="background:#fbfaf8"></span>Hell</button></div>
-      <h4>Schrift</h4><div class="seg">
-        <button data-ff="serif" class="${prefs.font === "serif" ? "on" : ""}" style="font-family:Literata,serif">Buch</button>
-        <button data-ff="sans" class="${prefs.font === "sans" ? "on" : ""}">Modern</button></div>
+    const designs = [["hell", "#fbfaf8", "Hell"], ["sepia", "#f3e9d7", "Sepia"], ["mint", "#dcefe5", "Mint"], ["dunkel", "#0f0e13", "Dunkel"]];
+    const schriften = [["serif", "Classic", "Literata,serif"], ["sans", "Clean", "Inter,sans-serif"], ["bookish", "Bookish", "'Cormorant Garamond',serif"]];
+    const abst = [[1.45, "Eng"], [1.72, "Normal"], [2.05, "Weit"]], lh = prefs.lh || 1.72;
+    sh.innerHTML = `<h4>Design</h4><div class="seg">${designs.map(([k, f, t]) => `<button data-th="${k}" class="rund ${prefs.theme === k ? "on" : ""}" aria-label="${t}"><span class="sw rund" style="background:${f}"></span></button>`).join("")}</div>
+      <h4>Schriftart</h4><div class="seg">${schriften.map(([k, t, ff]) => `<button data-ff="${k}" class="${prefs.font === k ? "on" : ""}" style="font-family:${ff}">${t}</button>`).join("")}</div>
+      <h4>Schriftgröße</h4><div class="rsl"><small style="font-size:12px">A</small><input type="range" id="rFs" min="14" max="30" step="1" value="${prefs.fs}" aria-label="Schriftgröße"><small style="font-size:20px">A</small></div>
+      <h4>Zeilenabstand</h4><div class="seg">${abst.map(([v, t]) => `<button data-lh="${v}" class="${Math.abs(lh - v) < .01 ? "on" : ""}">${t}</button>`).join("")}</div>
+      <h4>Helligkeit</h4><div class="rsl"><small>☼</small><input type="range" id="rHell" min="40" max="100" step="1" value="${Math.round((prefs.hell || 1) * 100)}" aria-label="Helligkeit"><small style="font-size:18px">☀</small></div>
       <h4>Begriffe erklären</h4><div class="seg">
         <button data-gl="1" class="${prefs.glossar !== false ? "on" : ""}">An</button>
         <button data-gl="0" class="${prefs.glossar === false ? "on" : ""}">Aus</button></div>`;
@@ -2470,16 +2564,105 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     requestAnimationFrame(() => sh.classList.add("open"));
     sh.onclick = e => {
       const b = e.target.closest("button"); if (!b) return;
-      if (b.dataset.fs) prefs.fs = +b.dataset.fs;
       if (b.dataset.th) prefs.theme = b.dataset.th;
       if (b.dataset.ff) prefs.font = b.dataset.ff;
+      if (b.dataset.lh) prefs.lh = +b.dataset.lh;
       if (b.dataset.gl) { prefs.glossar = b.dataset.gl === "1"; glossMark(); }
-      save("prefs", prefs);
-      const r = document.getElementById("reader");
-      if (r) { r.dataset.theme = prefs.theme; r.dataset.font = prefs.font; r.style.setProperty("--fs", prefs.fs + "px"); }
-      openSheet();
+      save("prefs", prefs); readerPrefs(); openSheet();
     };
+    const fs = document.getElementById("rFs"), hl = document.getElementById("rHell");
+    fs.oninput = () => { prefs.fs = +fs.value; readerPrefs(); }; fs.onchange = () => save("prefs", prefs);
+    hl.oninput = () => { prefs.hell = +hl.value / 100; readerPrefs(); }; hl.onchange = () => save("prefs", prefs);
   }
+  /* ☰ Kapitelübersicht: schlicht – springen, Haken an gelesenen Kapiteln, aktuelles markiert */
+  function openKapitel(id, ch) {
+    const st = byId[id], p = progress[id] || { read: [] };
+    let d = document.getElementById("kdr");
+    if (!d) { d = document.createElement("div"); d.className = "kdr"; d.id = "kdr"; document.body.appendChild(d); }
+    d.innerHTML = `<h4>${esc(st.title)}</h4>` + st.chapters.map((c, i) => `<a href="#/read/${st.id}/${i}" class="${i === ch ? "cur" : ""}"><b>${i + 1}: ${esc(c.title)}</b><i>${(p.read || []).includes(i) ? "✓" : ""}</i></a>`).join("");
+    const bg = document.getElementById("sheetBg");
+    bg.style.display = "block";
+    requestAnimationFrame(() => { d.classList.add("open"); const cur = d.querySelector(".cur"); if (cur) cur.scrollIntoView({ block: "center" }); });
+    d.onclick = e => { if (e.target.closest("a")) closeSheet(); };
+  }
+  /* ---------- Sammelkarten „VIP Zugang“ (seit 27.10.2026): Daten privat in vip.json (Vorschau: DATA.app.vip) ---------- */
+  let VIP = DATA.app.vip || null;
+  const LILIE = c => `<svg viewBox="0 0 32 32"><g fill="${c}"><path d="M16 3c2.6 3.6 3.4 8.2 2 13.5-.6 2.2-1.2 3.6-2 4.5-.8-.9-1.4-2.3-2-4.5C12.6 11.2 13.4 6.6 16 3z"/><path d="M5 9c4.6.4 8.3 3 10 7.5.5 1.4.8 3 1 4.5-1.6-.2-3.2-.7-4.6-1.5C7.6 17.3 5.3 13.6 5 9z"/><path d="M27 9c-.3 4.6-2.6 8.3-6.4 10.5-1.4.8-3 1.3-4.6 1.5.2-1.5.5-3.1 1-4.5C18.7 12 22.4 9.4 27 9z"/><rect x="10" y="22" width="12" height="2.4" rx="1.2"/><path d="M14.6 24.4h2.8L18 29h-4z"/></g></svg>`;
+  const KETTE = c => `<svg viewBox="0 0 32 32"><g fill="none" stroke="${c}" stroke-width="2.4"><rect x="3" y="11" width="13" height="9" rx="4.5" transform="rotate(-30 9.5 15.5)"/><rect x="16" y="12" width="13" height="9" rx="4.5" transform="rotate(-30 22.5 16.5)"/></g></svg>`;
+  const symbol = (k, c) => k.symbol === "kette" ? KETTE(c) : LILIE(c);
+  function vipWappen(k) {
+    const silber = k.rahmen === "silber", a = silber ? "#dfe4ea" : "#f3d27a", b = silber ? "#5c6670" : "#8a5f12";
+    return `<svg class="wap" viewBox="0 0 200 262"><defs><linearGradient id="wg${k.symbol}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>
+      <path d="M100 12l78 26v70c0 58-36 96-78 118C58 204 22 166 22 108V38z" fill="#16121c" stroke="url(#wg${k.symbol})" stroke-width="7"/>
+      <path d="M100 30l62 21v57c0 48-29 80-62 99-33-19-62-51-62-99V51z" fill="none" stroke="url(#wg${k.symbol})" stroke-width="1.5" opacity=".6"/>
+      <circle cx="100" cy="82" r="30" fill="url(#wg${k.symbol})"/><circle cx="113" cy="72" r="26" fill="#16121c"/>
+      <g transform="translate(64 112) scale(2.25)">${symbol(k, `url(#wg${k.symbol})`).replace(/<\/?svg[^>]*>/g, "")}</g>
+      <text x="100" y="254" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="19" font-weight="700" letter-spacing="4" fill="${b}">WOLFSMOND</text></svg>`;
+  }
+  function vipKarte(id) {
+    const k = VIP[id], gold = k.rahmen === "silber" ? "#5c6670" : "#b8860b";
+    const kreise = v => { let h = ""; for (let i = 1; i <= 10; i++) h += `<i class="${i <= v ? "v" : ""}"></i>`; for (let i = 11; i <= v; i++) h += `<i class="x" style="left:${117 + (i - 10) * 6}px;top:${-(i - 10) * 1.6}px;animation-delay:${(i % 5) * .12}s"></i>`; return h; };
+    const eck = ["top:2px;left:2px", "top:2px;right:2px;transform:scaleX(-1)", "bottom:2px;left:2px;transform:scaleY(-1)", "bottom:2px;right:2px;transform:scale(-1)"];
+    return `<div class="vk" data-r="${k.rahmen}" id="vk"><div class="in">
+      <div class="vs"><div class="body">
+        <div class="kopf"><h2>${esc(k.name)}</h2><span class="hz">Herz <b>${k.herz}</b></span>${symbol(k, gold)}</div>
+        <div class="typ">Typ: ${esc(k.typ)}</div>
+        <div class="bild"><img src="${k.img}" alt="">${eck.map(s => `<span class="eck" style="${s}">${symbol(k, k.rahmen === "silber" ? "#e9edf1" : "#f3d27a")}</span>`).join("")}</div>
+        <div class="unter">${esc(k.unter)}</div>
+        <div class="wt">${k.werte.map(([n, v, note]) => `<span>${esc(n)}</span><span class="pk">${kreise(v)}</span><span class="zahl ${v > 10 ? "ueber" : ""}">${v}</span>${note ? `<small>${esc(note)}</small>` : ""}`).join("")}</div>
+        <div class="fk"><h5>Fähigkeit · <span>${esc(k.faehigkeit[0])}</span></h5>${esc(k.faehigkeit[1])}</div>
+        <div class="fk"><h5>${esc(k.attackenTitel)}</h5><ul class="att">${k.attacken.map(([n, t]) => `<li><b>${esc(n)}</b> – ${esc(t)}</li>`).join("")}</ul></div>
+        ${k.notiz ? `<div class="fk"><h5>${esc(k.notiz[0])}</h5>${esc(k.notiz[1])}</div>` : ""}
+        ${k.link && VIP[k.link[2]] ? `<button type="button" class="lnk" data-vip="${k.link[2]}">${esc(k.link[0])}: <span>${esc(k.link[1])}</span> ›</button>` : ""}
+        ${k.text ? `<div class="kt">${esc(k.text)}</div>` : ""}
+        <div class="fuss">${esc(k.fuss)}</div>
+      </div></div>
+      <div class="rs">${vipWappen(k)}</div>
+      <div class="holo"></div>
+    </div></div>`;
+  }
+  let vipNeig = null;
+  function vipNeigung(an) {
+    const ov = document.getElementById("vipov");
+    if (vipNeig) { window.removeEventListener("deviceorientation", vipNeig); ov.onpointermove = null; vipNeig = null; }
+    if (!an) return;
+    const setze = (x, y) => { const k = document.getElementById("vk"); if (!k) return;
+      x = Math.max(-1, Math.min(1, x)); y = Math.max(-1, Math.min(1, y));
+      k.classList.remove("glanz"); k.style.setProperty("--ry", (x * 12).toFixed(1) + "deg"); k.style.setProperty("--rx", (-y * 10).toFixed(1) + "deg");
+      k.style.setProperty("--hx", (50 + x * 50).toFixed(0) + "%"); k.style.setProperty("--hy", (50 + y * 50).toFixed(0) + "%"); };
+    let basis = null;
+    vipNeig = e => { if (e.gamma == null) return; if (!basis) basis = { b: e.beta, g: e.gamma }; setze((e.gamma - basis.g) / 25, (e.beta - basis.b) / 25); };
+    window.addEventListener("deviceorientation", vipNeig);
+    ov.onpointermove = e => { if (e.pointerType === "mouse") setze(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1); };
+  }
+  async function vipOeffnen(id) {
+    if (!VIP && sb) { try { const r = await sb.storage.from(SBC.bucket).download("vip.json"); if (!r.error) VIP = JSON.parse(await r.data.text()); } catch (e) {} }
+    if (!VIP || !VIP[id]) return libToast("VIP Zugang", "Die Karte konnte gerade nicht geladen werden.");
+    let ov = document.getElementById("vipov");
+    if (!ov) {
+      ov = document.createElement("div"); ov.className = "vipov"; ov.id = "vipov"; document.body.appendChild(ov);
+      ov.onclick = e => {
+        const l = e.target.closest("[data-vip]");
+        if (l) { e.stopPropagation(); return vipOeffnen(l.dataset.vip); }
+        if (e.target.closest(".zu") || e.target === ov) return vipZu();
+        const k = e.target.closest(".vk"); if (k) k.classList.toggle("um");
+      };
+    }
+    ov.innerHTML = `<button type="button" class="zu" aria-label="Schließen">✕</button>${vipKarte(id)}<div class="hint">Antippen dreht die Karte · Handy neigen lässt sie schimmern</div>`;
+    ov.classList.add("open"); ov.scrollTop = 0;
+    document.getElementById("vk").classList.add("glanz");
+    // iOS fragt nach Erlaubnis für Bewegungsdaten – beim ersten Tipp
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function")
+      ov.addEventListener("click", () => DeviceOrientationEvent.requestPermission().then(r => r === "granted" && vipNeigung(true)).catch(() => {}), { once: true });
+    else vipNeigung(true);
+    // Erstes Öffnen je Karte → Ereignis → Push an Markus (nur aus ihrem Konto, ereignis() filtert Markus aus)
+    const lokal = load("vipG", {}), pv = prefs.vip || {};
+    if (!lokal[id] && !pv[id] && VIP[id].ereignis) {
+      ereignis("vip_karte", VIP[id].ereignis, { karte: id });
+      lokal[id] = pv[id] = Date.now(); save("vipG", lokal); prefs.vip = pv; save("prefs", prefs);
+    }
+  }
+  function vipZu() { const ov = document.getElementById("vipov"); if (ov) ov.classList.remove("open"); vipNeigung(false); }
   /* ---------- Glossar: erstes Vorkommen je Kapitel dezent markiert, Tipp zeigt eine Notizkarte ---------- */
   let glossSt = null;
   function glossClose() { document.querySelectorAll(".glk").forEach(k => k.remove()); }
@@ -2529,7 +2712,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   document.addEventListener("click", e => { if (!e.target.closest(".gl, .glk")) glossClose(); });
   addEventListener("scroll", () => { if (document.querySelector(".glk")) glossClose(); }, { passive: true, capture: true });
 
-  function closeSheet() { document.getElementById("sheet").classList.remove("open"); document.getElementById("sheetBg").style.display = "none"; }
+  function closeSheet() { document.getElementById("sheet").classList.remove("open"); const k = document.getElementById("kdr"); if (k) k.classList.remove("open"); document.getElementById("sheetBg").style.display = "none"; }
   document.getElementById("sheetBg").onclick = closeSheet;
 
   /* ---------- Router ---------- */
@@ -2555,6 +2738,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let onScroll = null;
   let lastRoute = "", taps = [], sleepT = 0;
   function route() {
+    vipZu();
     kfbFlush();
     closeSheet();
     clearInterval(sleepT);
@@ -2668,6 +2852,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       progress[id] = Object.assign({ read: [] }, prev, prev && prev.done && !prev.re ? { t: Date.now() } : { ch, pos: restore, t: Date.now() });
       save("progress", progress);
       document.getElementById("aa").onclick = openSheet;
+      document.getElementById("kapListe").onclick = () => openKapitel(id, ch);
+      document.getElementById("vipBtn").onclick = () => vipOeffnen("herrin");
       glossMark(byId[id]);
       on("nextch", () => markRead(id, ch));
       on("lastch", () => markRead(id, ch));
@@ -2675,12 +2861,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       fbBind(id);
       fbbBind(id);
       kfbBind();
-      const bar = document.getElementById("rbar"), prog = document.getElementById("rprog");
+      const bar = document.getElementById("rbar"), prog = document.getElementById("rprog"), proz = document.getElementById("rproz");
+      document.querySelector("#reader .txt").addEventListener("click", e => { if (!e.target.closest("a, button, .gl, input, textarea")) bar.classList.toggle("hide"); });
       let lastY = 0, t = 0;
       const self = onScroll = () => {
         const y = getY(), max = getMax();
         const ratio = max > 0 ? Math.min(1, y / max) : 1;
         prog.style.width = (ratio * 100) + "%";
+        proz.textContent = Math.round(ratio * 100) + "%";
         bar.classList.toggle("hide", y > lastY && y > 120);
         lastY = y;
         schlaf(); lastMove = Date.now();

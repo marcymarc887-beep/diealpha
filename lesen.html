@@ -163,6 +163,9 @@ body.reading .tabbar { display: none; }
 .kdr.open { transform: none; }
 .kdr h4 { margin: 4px 18px 10px; font-size: 13px; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
 .kdr a { display: flex; gap: 10px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line); font-size: 15px; }
+.kdr a.zu, .chlist li.zu > span { opacity: .5; }
+.chlist li.zu > span { display: flex; gap: 14px; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--line); }
+.btn.zu { opacity: .6; pointer-events: none; }
 .kdr a b { flex: 1; font-weight: 500; }
 .kdr a i { font-style: normal; color: var(--accent); width: 16px; text-align: center; }
 .kdr a.cur { background: rgba(232,180,79,.13); }
@@ -687,6 +690,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       try {
         const d = await sb.from("datiert").select("id, ab, meta");
         (d.data || []).forEach(x => { if (!DATA.stories.some(s => s.id === x.id)) DATA.stories.push(Object.assign(x.meta, { datiert: true, ab: x.ab })); });
+        // Kapitel mit eigenem Datum (seit 28.10.2026, Adventskrimi 1903): Titel + Text kommen erst ab ihrem Tag (Markus: sofort)
+        if (DATA.stories.some(s => s.kapAb)) {
+          const k = await sb.from("datiert_kapitel").select("id, nr, titel, blocks");
+          (k.data || []).forEach(x => { const c = ((DATA.stories.find(s => s.id === x.id) || {}).chapters || [])[x.nr]; if (c) { c.title = x.titel; c.blocks = x.blocks; } });
+        }
       } catch (e) {}
     } catch (e) { return fail("Die Bibliothek konnte nicht geladen werden."); }
   }
@@ -760,6 +768,10 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     catch (e) { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() }; }
   }
   const HEUTE = heuteBerlin(istAdmin || !sb);          // Datum simulieren: nur Markus und die lokale Vorschau
+  const isoTag = t => `${t.y}-${String(t.m).padStart(2, "0")}-${String(t.d).padStart(2, "0")}`;
+  /* Kapitel noch gesperrt (eigenes „ab“): Text fehlt (Server liefert ihn erst ab dem Tag) oder simuliertes Datum liegt davor */
+  const kapZu = (st, i) => { const c = st && st.chapters && st.chapters[i]; return !!(c && c.ab && (!c.blocks || (HEUTE.sim && c.ab > isoTag(HEUTE)))); };
+  const kapAbText = c => { const [, m, d] = c.ab.split("-"); return "ab " + +d + ". " + ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"][+m - 1]; };
   let evq = load("evq", []);
   function ereignis(art, text, ref) {
     if (!sb || istAdmin) return;
@@ -868,10 +880,11 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!sb || reloadPending) return;
     lastCheck = Date.now();
     try {
-      const r = await sb.storage.from(SBC.bucket).download("meta.json");
-      if (r.error) return;
-      const fresh = await r.data.text();
-      if (!fresh || fresh === metaText) return;
+      const faellig = DATA.stories.some(s => s.kapAb && s.chapters.some(c => !c.blocks && c.ab <= isoTag(heuteBerlin(false))));   // neues Kapitel freigeschaltet
+      const r = faellig ? null : await sb.storage.from(SBC.bucket).download("meta.json");
+      if (r && r.error) return;
+      const fresh = r && await r.data.text();
+      if (r && (!fresh || fresh === metaText)) return;
       reloadPending = true;
       if (!document.body.classList.contains("reading") && document.visibilityState === "visible") return applyUpdate();
       libToast("Neu in der Bibliothek", "Die Bibliothek aktualisiert sich, sobald du das Buch verlässt.");
@@ -885,6 +898,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
 
   /* ---------- Kapiteltexte nachladen (online liegen sie je Buch in einer eigenen Datei) ---------- */
   async function ensureBlocks(st) {
+    if (st.kapAb) return;                  // Kapiteltexte kommen schon beim Start aus datiert_kapitel
     if (st.datiert && !st.chapters.every(c => c.blocks)) {
       const r = await sb.from("datiert").select("texte").eq("id", st.id).single();
       if (r.error) throw r.error;
@@ -1740,6 +1754,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     st.chapters.forEach((c, i) => {
       const rd = (p.read || []).includes(i), cur = i === p.ch && !p.done;
       const cls = cur ? "cur" : (rd ? "done" : "");
+      if (kapZu(st, i)) { h += `<li class="zu"><span><span class="no">🔒</span><span class="nm"><b>${kapAbText(c)}</b><small>Kapitel ${i + 1}</small></span></span></li>`; return; }
       h += `<li class="${cls}"><a href="#/read/${st.id}/${i}"><span class="no">${rd && !cur ? "✓" : i + 1}</span>
         <span class="nm"><b>${esc(c.title)}</b><small>Kapitel ${i + 1} · ${Math.max(1, Math.round(c.words / 230))} Min.</small></span></a></li>`;
     });
@@ -1776,7 +1791,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         <div class="rend">${ch === n - 1 && st.status === "fertig" ? `<div class="fin">Ende</div>${fbHTML(st.id)}` : ""}<div class="of">Kapitel ${ch + 1} von ${n}${ch === n - 1 && st.status !== "fertig" ? " · weitere Kapitel folgen" : ""}</div>
           <div class="rnav">
             ${ch > 0 ? `<a class="btn ghost" href="#/read/${st.id}/${ch - 1}">Zurück</a>` : ""}
-            ${ch < n - 1 ? `<a class="btn" id="nextch" href="#/read/${st.id}/${ch + 1}">Nächstes Kapitel</a>`
+            ${ch < n - 1 && kapZu(st, ch + 1) ? `<span class="btn ghost zu">Nächstes Kapitel ${kapAbText(st.chapters[ch + 1])}</span>`
+              : ch < n - 1 ? `<a class="btn" id="nextch" href="#/read/${st.id}/${ch + 1}">Nächstes Kapitel</a>`
               : (st.status === "fertig" ? `<a class="btn" id="finish" href="#/story/${st.id}">Buch abschließen ✓</a>` : `<a class="btn" id="lastch" href="#/story/${st.id}">Zur Übersicht</a>`)}
           </div></div>
       </div>
@@ -2894,7 +2910,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const st = byId[id], p = progress[id] || { read: [] };
     let d = document.getElementById("kdr");
     if (!d) { d = document.createElement("div"); d.className = "kdr"; d.id = "kdr"; document.body.appendChild(d); }
-    d.innerHTML = `<h4>${esc(st.title)}</h4>` + st.chapters.map((c, i) => `<a href="#/read/${st.id}/${i}" class="${i === ch ? "cur" : ""}"><b>${i + 1}: ${esc(c.title)}</b><i>${(p.read || []).includes(i) ? "✓" : ""}</i></a>`).join("");
+    d.innerHTML = `<h4>${esc(st.title)}</h4>` + st.chapters.map((c, i) => kapZu(st, i) ? `<a class="zu"><b>${i + 1}: ${kapAbText(c)}</b><i>🔒</i></a>` : `<a href="#/read/${st.id}/${i}" class="${i === ch ? "cur" : ""}"><b>${i + 1}: ${esc(c.title)}</b><i>${(p.read || []).includes(i) ? "✓" : ""}</i></a>`).join("");
     const bg = document.getElementById("sheetBg");
     bg.style.display = "block";
     requestAnimationFrame(() => { d.classList.add("open"); const cur = d.querySelector(".cur"); if (cur) cur.scrollIntoView({ block: "center" }); });
@@ -3062,6 +3078,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (onScroll) { window.removeEventListener("scroll", onScroll); app.removeEventListener("scroll", onScroll); onScroll = null; }
     if (/^#\/?fragebogen\/?$/.test(location.hash) || (briefFuer && location.hash.startsWith("#/fragen"))) { location.replace(briefFuer ? "#/brief" : "#/fragen"); return; }   // Direktlink lesen.html#fragebogen (Brief-Konten: der Brief)
     const parts = (location.hash.replace(/^#\/?/, "") || "").split("/");
+    if (parts[0] === "read" && kapZu(byId[parts[1]], Math.max(0, parseInt(parts[2] || "0", 10) || 0))) { location.replace("#/story/" + parts[1]); return; }   // gesperrtes Kapitel
     const reading = parts[0] === "read";
     document.body.classList.toggle("reading", reading);
     document.body.classList.toggle("showp", !!prefs.showP);
@@ -3085,7 +3102,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     else if (parts[0] === "fragebogenantworten") html = viewFragenAntw();
     else if (reading) {
       const st = byId[parts[1]];
-      if (st && (st.file || st.datiert) && st.chapters && !st.chapters.every(c => c.blocks)) {
+      if (st && (st.file || (st.datiert && !st.kapAb)) && st.chapters && !st.chapters.every(c => c.blocks)) {
         app.innerHTML = '<div class="view"><div class="loading">Kapitel werden geladen …</div></div>';
         const want = location.hash;
         ensureBlocks(st).then(() => { if (location.hash === want) route(); })

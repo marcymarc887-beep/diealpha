@@ -1259,8 +1259,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* ---------- Reihen-Gimmicks (seit 27.10.2026, Markus): wachsen mit dem Lesestand. Gelesene Bände sichtbar,
      der nächste nur angedeutet, nichts aus ungelesenen Bänden. Daten je Band: stories.json → "gimmick". ---------- */
-  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass, mondschacht: gimSchacht, "die-erzaehlten": gimNebel };
-  const GIM_INFO = { asmussen: gimSchirmInfo, grenzgaenger: gimPassInfo, mondschacht: gimSchachtInfo, "die-erzaehlten": gimNebelInfo };
+  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass, mondschacht: gimSchacht, "die-erzaehlten": gimNebel, "vergessene-fahrt": gimArche, kometenblut: gimKomet };
+  const GIM_INFO = { asmussen: gimSchirmInfo, grenzgaenger: gimPassInfo, mondschacht: gimSchachtInfo, "die-erzaehlten": gimNebelInfo, "vergessene-fahrt": gimArcheInfo, kometenblut: gimKometInfo };
   function gimmickHTML(r) {
     const f = GIMMICKS[r.id];
     if (!f) return "";
@@ -1423,6 +1423,68 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const [b, k] = String(i).split("."), s = r.st.filter(isDone)[+b], g = s.gimmick || {};
     if (k !== undefined) { const rb = (g.rueckblenden || [])[+k] || {}; return `<b>Rückblende · ${esc(rb.zeit || "")}</b><small>aus „${esc(s.title)}“</small>${rb.text ? `<i>${esc(rb.text)}</i>` : ""}`; }
     return `<b>${esc(g.zeit || "")}${g.epoche ? " · " + esc(g.epoche) : ""}</b><small>„${esc(s.title)}“${g.ort ? " · " + esc(g.ort) : ""}</small>${g.lied ? `<i>Man singt davon: „${esc(g.lied)}“</i>` : ""}`;
+  }
+  /* Die vergessene Fahrt: Querschnitt der Arche (Bug oben, Kessel unten); je gelesenem Band leuchten seine Decks auf, daneben Platz für den Zielplaneten */
+  const ARCHE_DECKS = [["bruecke", "Brückendeck", 26], ["archiv", "Archiv der Stillen", 20], ["ring1", "Ring 1", 30], ["ring2", "Ring 2", 30], ["kuppeln", "Die Kuppeln", 34],
+    ["wildring", "Der Wildring", 34], ["mittelring", "Mittelring & Fünfspeich", 30], ["ring6", "Ring 6", 30], ["ring7", "Ring 7", 30], ["kessel", "Der Kessel", 30]];
+  function gimArche(r, gelesen, naechster) {
+    const bekannt = {}; gelesen.forEach((s, i) => ((s.gimmick || {}).decks || []).forEach(d => { if (!(d in bekannt)) bekannt[d] = i; }));
+    let y = 40, decks = "";
+    ARCHE_DECKS.forEach(([id, name, h], k) => {
+      const an = id in bekannt, w = id === "bruecke" ? 70 : id === "kessel" ? 96 : id === "archiv" ? 84 : 128, x = 112 - w / 2;
+      decks += `<g ${an ? `data-g="${bekannt[id]}:${id}" tabindex="0"` : ""}>
+        <rect x="${x}" y="${y}" width="${w}" height="${h - 3}" rx="${id === "bruecke" ? 14 : 5}" fill="${an ? "#1d3a3a" : "#16151c"}" stroke="${an ? "#7fd8c8" : "#34323e"}" stroke-width="${an ? 1.4 : 1}"/>
+        ${an ? `<rect x="${x + 4}" y="${y + 3}" width="${w - 8}" height="3" fill="#e8f4d0" opacity=".7"/>${id === "kuppeln" ? [0, 1, 2, 3].map(j => `<path d="M${x + 14 + j * 28},${y + h - 5} q8,-14 16,0" fill="#4a8a4a"/>`).join("") : id === "wildring" ? [0, 1, 2, 3, 4].map(j => `<path d="M${x + 12 + j * 24},${y + h - 5} l5,-14 l5,14" fill="#2f6a3a"/>`).join("") : ""}` : ""}
+        <text x="${112 + w / 2 + 8}" y="${y + h / 2 + 2}" fill="${an ? "#bfe8dc" : "#4a4858"}" font-size="9" font-family="Inter, sans-serif">${an ? esc(name) : "· · ·"}</text></g>`;
+      y += h;
+    });
+    const planet = `<g opacity=".7"><circle cx="270" cy="110" r="30" fill="none" stroke="#6a6680" stroke-width="1.2" stroke-dasharray="3 4"/>
+      <text x="270" y="114" text-anchor="middle" fill="#6a6680" font-size="18" font-family="Cormorant Garamond, serif">?</text>
+      <text x="270" y="156" text-anchor="middle" fill="#6a6680" font-size="8" font-family="Inter, sans-serif" letter-spacing="1">ZIEL UNBEKANNT</text></g>`;
+    return `<h4>Der Deckplan der Arche</h4><p class="gsub">Mit jedem Band lernst du ein Deck kennen. ${gelesen.length ? "Tippe auf ein Deck." : "Noch ist das Schiff dunkel."}</p>
+      <svg viewBox="0 0 320 ${y + 50}" role="img" aria-label="Deckplan">
+        <rect width="320" height="${y + 50}" rx="10" fill="#0c0b12"/>
+        ${Array.from({ length: 30 }, (_, k) => `<circle cx="${(k * 97) % 316 + 2}" cy="${(k * 61) % (y + 46) + 2}" r="${k % 4 ? .6 : 1}" fill="#cfd8ff" opacity=".45"/>`).join("")}
+        <path d="M112,16 V${y + 30}" stroke="#2a2836" stroke-width="5"/>
+        <path d="M112,${y + 2} l-22,26 h44 z" fill="#2a1a14" stroke="#4a2a1a"/>${gelesen.length ? `<ellipse cx="112" cy="${y + 32}" rx="16" ry="6" fill="rgba(255,140,60,.35)"/>` : ""}
+        ${decks}${planet}
+        <text x="112" y="14" text-anchor="middle" fill="#5a5870" font-size="8" font-family="Inter, sans-serif" letter-spacing="2">BUG</text>
+        <text x="112" y="${y + 46}" text-anchor="middle" fill="#5a5870" font-size="8" font-family="Inter, sans-serif" letter-spacing="2">HECK</text>
+      </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Bekannte Decks: <b>${Object.keys(bekannt).length}</b> von ${ARCHE_DECKS.length}` : "Lies den ersten Band, dann gehen die ersten Lichter an."}</div>`;
+  }
+  function gimArcheInfo(r, i) {
+    const [b, d] = String(i).split(":"), s = r.st.filter(isDone)[+b], g = s.gimmick || {}, deck = ARCHE_DECKS.find(x => x[0] === d);
+    return `<b>${esc(deck ? deck[1] : "")}</b>${g.fj ? " · Fahrtjahr " + esc(g.fj) : ""}<small>Entdeckt in „${esc(s.title)}“ (Band ${s.reihe.teil})</small>${g.notiz ? `<i>${esc(g.notiz)}</i>` : ""}`;
+  }
+  /* Kometenblut: Sternenroute der Elster entlang der Perlenschnur, dazu Zoras Schuldenzähler (Stand nach dem zuletzt gelesenen Band) */
+  function gimKomet(r, gelesen, naechster) {
+    const pos = name => { const h = hash(name); return [30 + (h % 260), 34 + ((h >>> 9) % 120)]; };
+    const stationen = []; gelesen.forEach((s, i) => ((s.gimmick || {}).route || []).forEach(n => stationen.push([n, i])));
+    let route = "", orte = {};
+    stationen.forEach(([n, i], k) => { const [x, y] = pos(n); if (k) { const [px, py] = pos(stationen[k - 1][0]); route += `<path d="M${px},${py} Q${(px + x) / 2},${Math.min(py, y) - 26} ${x},${y}" fill="none" stroke="#e8b44f" stroke-width="1.6" stroke-dasharray="1 4" stroke-linecap="round"/>`; } orte[n] = i; });
+    const sterne = Object.entries(orte).map(([n, i]) => { const [x, y] = pos(n); return `<g data-g="${i}:${n}" tabindex="0"><circle cx="${x}" cy="${y}" r="11" fill="url(#gstern)"/><circle cx="${x}" cy="${y}" r="3.2" fill="#fff0c0"/><text x="${x}" y="${y + 17}" text-anchor="middle" fill="#e8d9b0" font-size="8.5" font-family="Inter, sans-serif">${esc(n)}</text></g>`; }).join("");
+    const letzt = stationen.length ? pos(stationen[stationen.length - 1][0]) : [40, 150];
+    const elster = `<g transform="translate(${letzt[0] - 8} ${letzt[1] - 20})"><path d="M0,6 q8,-8 16,0 q-8,3 -16,0 z" fill="#1a1a22" stroke="#9ad0ff" stroke-width=".8"/><path d="M4,5 l-6,-6 M10,4 l2,-7" stroke="#9ad0ff" stroke-width=".8"/><circle cx="13" cy="5" r=".9" fill="#ffd27a"/></g>`;
+    const weiter = naechster && stationen.length ? `<g data-g="n" tabindex="0" opacity=".55"><path d="M${letzt[0]},${letzt[1]} q30,-30 ${292 - letzt[0]},${-letzt[1] + 26}" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 5"/><text x="296" y="28" text-anchor="end" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
+    const g = gelesen.length ? gelesen[gelesen.length - 1].gimmick || {} : {}, stand = gelesen.length && g.schulden != null ? g.schulden : null;
+    const ziffern = stand == null ? "???.???" : String(stand).padStart(7, "0").replace(/^(\d)(\d{3})(\d{3})$/, "$1$2.$3").replace(/^0+(?=\d)/, m => " ".repeat(m.length));
+    return `<h4>Die Route der Elster</h4><p class="gsub">Jeder Band ein Stück Weg entlang der Perlenschnur – und Zoras Schuldbuch rechnet mit.</p>
+      <svg viewBox="0 0 320 250" role="img" aria-label="Sternenroute">
+        <defs><radialGradient id="gstern"><stop offset="0" stop-color="rgba(255,220,140,.55)"/><stop offset="1" stop-color="rgba(255,200,100,0)"/></radialGradient>
+          <linearGradient id="gneb" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#1a1030"/><stop offset=".5" stop-color="#0c0a18"/><stop offset="1" stop-color="#101a2a"/></linearGradient></defs>
+        <rect width="320" height="250" rx="10" fill="url(#gneb)"/>
+        ${Array.from({ length: 70 }, (_, k) => `<circle cx="${(k * 89) % 316 + 2}" cy="${(k * 53) % 180 + 4}" r="${k % 7 ? .6 : 1.2}" fill="#dfe6ff" opacity="${.3 + (k % 5) * .1}"/>`).join("")}
+        <path d="M-10,150 C60,120 120,170 180,140 S280,100 330,120" fill="none" stroke="#5a4a8a" stroke-width="18" opacity=".12"/>
+        ${route}${sterne}${weiter}${stationen.length ? elster : ""}
+        <g transform="translate(60 196)"><rect width="200" height="42" rx="6" fill="#1b140c" stroke="#8a6a2a"/>
+          <text x="100" y="12" text-anchor="middle" fill="#b8944a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing="1.5">ZORAS SCHULDBUCH · OFFEN</text>
+          <text x="100" y="34" text-anchor="middle" fill="${stand ? "#ff9a7a" : "#e8d9b0"}" font-size="18" font-family="Courier New, monospace" font-weight="700" xml:space="preserve">${esc(ziffern)} Kr</text></g>
+      </svg><div class="ginfo" id="ginfo">${gelesen.length ? (g.schuld_text ? esc(g.schuld_text) : "Tippe auf einen Stern.") : "Noch liegt die Elster im Dock."}</div>`;
+  }
+  function gimKometInfo(r, i) {
+    if (i === "n") return "<b>Der nächste Kurs</b><small>Wohin die Elster fliegt, steht noch in keinem Logbuch.</small>";
+    const [b, n] = String(i).split(":"), s = r.st.filter(isDone)[+b], g = s.gimmick || {};
+    return `<b>${esc(n)}</b><small>Station in „${esc(s.title)}“${g.jahr ? " · " + esc(g.jahr) : ""}</small>${g.schuld_text ? `<i>${esc(g.schuld_text)}</i>` : ""}`;
   }
   function gimmickBind() {
     const box = document.querySelector(".gim");

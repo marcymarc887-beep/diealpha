@@ -252,6 +252,20 @@ body.reading .tabbar { display: none; }
 .vk[data-r="silber"] .holo { opacity: .3; }
 .vk .wap { width: 78%; position: sticky; top: 30%; }
 .vk .rs { align-items: start; padding-top: 40%; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 6px, transparent 6px 14px), linear-gradient(135deg, var(--g1), var(--g2) 40%, var(--g3) 70%, var(--g2)); }
+/* ---------- Reihen-Gimmicks (seit 27.10.2026): wachsen mit dem Lesestand, Daten je Band in stories.json → "gimmick" ---------- */
+.gim { margin: 6px 0 26px; background: radial-gradient(ellipse at 50% 0%, rgba(232,180,79,.08), transparent 70%), var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 12px; }
+.gim h4 { margin: 0 0 2px; font: 600 13px Inter, sans-serif; letter-spacing: .8px; text-transform: uppercase; color: var(--accent); }
+.gim .gsub { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.gim svg { display: block; width: 100%; height: auto; max-width: 460px; margin: 0 auto; }
+.gim [data-g] { cursor: pointer; }
+.gim [data-g]:focus { outline: none; }
+.gim .ginfo { min-height: 64px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); font-size: 14px; line-height: 1.5; }
+.gim .ginfo b { color: var(--accent); }
+.gim .ginfo i { display: block; margin-top: 4px; font-family: Literata, Georgia, serif; color: #d9cfb8; }
+.gim .ginfo small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.gim .gsel { filter: drop-shadow(0 0 6px rgba(255,215,120,.9)); }
+.pass { perspective: 1200px; }
+.pass .pdeckel { transition: transform .8s cubic-bezier(.3,.7,.3,1); transform-origin: 0 50%; transform-box: fill-box; }
 /* ---------- Einstellungs-Sheet ---------- */
 .reader .txt .gl { text-decoration: underline dotted rgba(232,180,79,.75); text-decoration-thickness: 1.5px; text-underline-offset: .22em; cursor: pointer; }
 .glk { position: fixed; z-index: 55; max-width: min(300px, calc(100vw - 32px)); background: #f6edd6; color: #3a2e1c; border-radius: 3px 3px 10px 3px;
@@ -1243,6 +1257,113 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <div class="kinfo" id="kinfo">${orte.length ? `<small>Tippe auf einen Ort${lupen.length ? " – oder auf eine Lupe, um näher heranzugehen" : ""}.</small>` : "<small>Noch ist alles Nebel. Lies weiter, und die Karte beginnt sich zu zeichnen.</small>"}</div>
       <div class="kzahl">${orte.length} von ${alle.length} Orten entdeckt</div>`;
   }
+  /* ---------- Reihen-Gimmicks (seit 27.10.2026, Markus): wachsen mit dem Lesestand. Gelesene Bände sichtbar,
+     der nächste nur angedeutet, nichts aus ungelesenen Bänden. Daten je Band: stories.json → "gimmick". ---------- */
+  const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass };
+  function gimmickHTML(r) {
+    const f = GIMMICKS[r.id];
+    if (!f) return "";
+    const gelesen = r.st.filter(isDone), naechster = r.st.find(s => !isDone(s));
+    return `<div class="gim" data-gim="${r.id}">${f(r, gelesen, naechster)}</div>`;
+  }
+  /* Asmussen: Veras gusseiserner Schirmständer in Reiherform; die alten 30 Schirme im Halbdunkel, je gelöstem Fall ein leuchtender */
+  function gimSchirme(r, gelesen, naechster) {
+    const R = rnd(1779), alt = [];
+    for (let i = 0; i < 30; i++) alt.push({ x: 108 + R() * 104, w: (R() - .5) * 26, h: 70 + R() * 50, c: ["#2a2630", "#33202a", "#1f2b2a", "#2b2a22", "#26232f"][i % 5], griff: R() < .6 });
+    const schirm = (x, w, h, farbe, cls, attr) => {
+      const top = 150 - h, gx = x + w;
+      return `<g class="${cls}" ${attr}><path d="M${x - 5},152 Q${x - 7},${top + 40} ${gx},${top + 8} Q${x + 7},${top + 40} ${x + 5},152 Z" fill="${farbe}" stroke="rgba(0,0,0,.5)" stroke-width=".8"/>
+        <path d="M${gx},${top + 8} L${gx + w * .05},${top - 6}" stroke="#a89a7a" stroke-width="2"/>
+        <path d="M${gx + w * .05},${top - 6} q0,-14 -9,-14 q-8,0 -8,8" fill="none" stroke="${cls.includes("neu") ? "#e8c27a" : "#5a4a3a"}" stroke-width="4" stroke-linecap="round"/></g>`;
+    };
+    let neu = "", spuren = "";
+    gelesen.forEach((s, i) => {
+      const g = s.gimmick || {}, x = 128 + ((i * 37) % 70), w = (i % 2 ? 1 : -1) * (8 + (i * 5) % 12), h = 108 + (i * 11) % 30;
+      if (g.verbleib) {   // Schirm steht nicht im Ständer: nur sein Umriss und Glut
+        spuren += `<g data-g="${i}" tabindex="0"><path d="M${x - 5},152 Q${x - 7},${150 - h + 40} ${x + w},${150 - h + 8} Q${x + 7},${150 - h + 40} ${x + 5},152 Z" fill="rgba(255,140,60,.06)" stroke="#e8964a" stroke-width="1.2" stroke-dasharray="3 3"/>
+          ${[0, 1, 2].map(k => `<circle cx="${x + w * .5 + (k - 1) * 4}" cy="${150 - h + 40 + k * 14}" r="1.4" fill="#ffb060"><animate attributeName="opacity" values=".2;1;.2" dur="${1.6 + k * .5}s" repeatCount="indefinite"/></circle>`).join("")}</g>`;
+      } else neu += schirm(x, w, h, g.farbe || "#6a2a3a", "neu", `data-g="${i}" tabindex="0"`);
+    });
+    const ahnung = naechster ? `<g opacity=".5" data-g="n" tabindex="0"><path d="M${200},152 Q198,70 212,42 Q206,70 210,152 Z" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 4"/><text x="214" y="38" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
+    return `<h4>Veras Schirmständer</h4><p class="gsub">Für jeden gelösten Fall ein Schirm. ${gelesen.length ? "Tippe auf einen Schirm." : "Noch steht nur die alte Sammlung darin."}</p>
+      <svg viewBox="0 0 320 270" role="img" aria-label="Schirmständer">
+        <defs><radialGradient id="glamp" cx="78%" cy="8%" r="80%"><stop offset="0" stop-color="#5a4524"/><stop offset=".45" stop-color="#1d1712"/><stop offset="1" stop-color="#0d0b0e"/></radialGradient>
+          <linearGradient id="geisen" x1="0" x2="1"><stop offset="0" stop-color="#121014"/><stop offset=".45" stop-color="#3a3640"/><stop offset=".6" stop-color="#2a262e"/><stop offset="1" stop-color="#0e0c10"/></linearGradient></defs>
+        <rect width="320" height="270" rx="10" fill="url(#glamp)"/>
+        <path d="M0,232 H320 V270 H0 Z" fill="#17110c"/><path d="M0,232 H320" stroke="#3a2a1a" stroke-width="2"/>
+        ${[0, 1, 2, 3].map(k => `<path d="M${k * 80},236 L${k * 80 + 40},270" stroke="#22180f" stroke-width="1"/>`).join("")}
+        <ellipse cx="258" cy="30" rx="34" ry="30" fill="rgba(255,200,120,.08)"/>
+        <g opacity=".85">${alt.map(a => schirm(a.x, a.w, a.h, a.c, "alt", "")).join("")}</g>
+        ${spuren}${neu}${ahnung}
+        <ellipse cx="160" cy="226" rx="66" ry="10" fill="#000" opacity=".5"/>
+        <path d="M96,150 L102,224 Q160,236 218,224 L224,150 Z" fill="url(#geisen)" stroke="#000" stroke-width="1"/>
+        ${[168, 186, 204].map(y => `<path d="M${97 + (y - 150) * .08},${y} Q160,${y + 8} ${223 - (y - 150) * .08},${y}" fill="none" stroke="#4a4550" stroke-width="1.4"/>`).join("")}
+        <ellipse cx="160" cy="150" rx="64" ry="9" fill="#1a171d" stroke="#57525e" stroke-width="2"/>
+        <path d="M222,214 C246,206 250,186 240,166 C230,146 236,124 252,112 C258,107 262,104 266,104" fill="none" stroke="url(#geisen)" stroke-width="8" stroke-linecap="round"/>
+        <path d="M222,214 C246,206 250,186 240,166 C230,146 236,124 252,112 C258,107 262,104 266,104" fill="none" stroke="#4a4550" stroke-width="1" opacity=".6"/>
+        <ellipse cx="270" cy="104" rx="9" ry="6" fill="#2a262e" stroke="#000" stroke-width=".8"/>
+        <path d="M277,102 L308,107 L277,108 Z" fill="#3a3640" stroke="#000" stroke-width=".6"/>
+        <path d="M265,100 C258,94 250,93 242,96 M266,101 C260,97 252,98 246,102" fill="none" stroke="#3a3640" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="272" cy="103" r="1.6" fill="#e8b44f"/>
+        <text x="160" y="254" text-anchor="middle" fill="#8a7a5a" font-size="10" font-family="Inter, sans-serif" letter-spacing="2">ASMUSSEN &amp; SÖHNE · SEIT 1871</text>
+      </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Gelöste Fälle: <b>${gelesen.length}</b> · im Ständer seit Jahren: 30 alte Schirme.` : "Lies den ersten Fall, dann bekommt Vera ihren ersten Schirm."}</div>`;
+  }
+  function gimSchirmInfo(r, i) {
+    if (i === "n") return "<b>Der nächste Fall</b><small>Noch ungelöst – der Platz im Ständer wartet.</small>";
+    const s = r.st.filter(isDone)[+i], g = s.gimmick || {};
+    return `<b>Fall ${s.reihe.teil}: ${esc(g.fall || s.title)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}<small>${esc(g.schirm || "Ein neuer Schirm")}${g.verbleib ? " – " + esc(g.verbleib) : ""}</small>${g.heft ? `<i>Aus dem Heft der Todestage: „${esc(g.heft)}“</i>` : ""}`;
+  }
+  /* Grenzgänger: Reisepass des Seerats, je gelesenem Band ein Stempel (Land, Ort, Jahr); Tippen auf den Pass klappt ihn auf */
+  function gimPass(r, gelesen, naechster) {
+    const offen = !!prefs.passOffen, ink = ["#2f6f8f", "#8f2f3a", "#3a7a4a", "#6a4a9a", "#9a6a2a", "#2a5a7a"];
+    const stempel = gelesen.map((s, i) => {
+      const g = s.gimmick || {}, c = g.farbe || ink[i % ink.length], col = i % 2, row = Math.floor(i / 2), x = 196 + col * 62, y = 52 + row * 60, rot = ((i * 37) % 17) - 8;
+      const rund = i % 3 !== 1;
+      return `<g data-g="${i}" tabindex="0" transform="translate(${x} ${y}) rotate(${rot})" opacity=".88">
+        ${rund ? `<circle r="25" fill="none" stroke="${c}" stroke-width="2.4"/><circle r="20" fill="none" stroke="${c}" stroke-width=".9"/>` : `<rect x="-27" y="-20" width="54" height="40" rx="4" fill="none" stroke="${c}" stroke-width="2.4"/><rect x="-23" y="-16" width="46" height="32" rx="2" fill="none" stroke="${c}" stroke-width=".9"/>`}
+        <text y="-4" text-anchor="middle" fill="${c}" font-size="${Math.min(7.6, 50 / Math.max(1, (g.land || "Band 0").length)).toFixed(1)}" font-weight="700" font-family="Inter, sans-serif" letter-spacing=".3">${esc((g.land || "Band " + s.reihe.teil).toUpperCase())}</text>
+        <text y="9" text-anchor="middle" fill="${c}" font-size="10" font-weight="700" font-family="Courier New, monospace">${esc(g.jahr || "")}</text>
+        <text y="17" text-anchor="middle" fill="${c}" font-size="4.6" font-family="Inter, sans-serif">GRENZGÄNGER</text></g>`;
+    }).join("");
+    const n = gelesen.length, leer = naechster ? `<g data-g="n" tabindex="0" transform="translate(${196 + (n % 2) * 62} ${52 + Math.floor(n / 2) * 60})" opacity=".45"><circle r="25" fill="none" stroke="#8a8270" stroke-width="1.4" stroke-dasharray="3 3"/><text y="5" text-anchor="middle" fill="#8a8270" font-size="16" font-family="Cormorant Garamond, serif">?</text></g>` : "";
+    const seiten = Math.max(1, Math.ceil((n + 1) / 2));
+    const hoehe = Math.max(200, 30 + seiten * 60);
+    const innen = `<rect x="18" y="10" width="284" height="${hoehe - 20}" rx="8" fill="#e9e1cb"/>
+        <path d="M160,10 V${hoehe - 10}" stroke="#c9bd9c" stroke-width="1.5"/>
+        <g opacity=".18">${Array.from({ length: Math.floor((hoehe - 30) / 10) }, (_, k) => `<path d="M24,${22 + k * 10} q34,-5 68,0 t68,0 t68,0 t68,0" fill="none" stroke="#7a8aa0" stroke-width=".6"/>`).join("")}</g>
+        <text x="89" y="34" text-anchor="middle" fill="#5a4a2a" font-size="9" font-family="Inter, sans-serif" letter-spacing="1.5">SEERAT · GRIESWERD</text>
+        <g transform="translate(89 78)"><circle r="26" fill="none" stroke="#8a6a2a" stroke-width="1.5"/><path d="M-16,6 q8,-8 16,0 t16,0" fill="none" stroke="#8a6a2a" stroke-width="1.5"/><path d="M-12,-6 l6,-10 l6,8 l6,-12 l6,14" fill="none" stroke="#8a6a2a" stroke-width="1.5"/><text y="40" text-anchor="middle" fill="#8a6a2a" font-size="7" font-family="Inter, sans-serif">KONSTANZ 1417</text></g>
+        <text x="34" y="140" fill="#5a4a2a" font-size="8" font-family="Inter, sans-serif">INHABERIN</text><text x="34" y="154" fill="#2a2010" font-size="12" font-family="Cormorant Garamond, serif" font-weight="700">Die Leserin</text>
+        <text x="34" y="172" fill="#5a4a2a" font-size="8" font-family="Inter, sans-serif">STEMPEL</text><text x="34" y="186" fill="#2a2010" font-size="12" font-family="Courier New, monospace">${n} von ${r.st.length}</text>
+        ${stempel}${leer}`;
+    const deckel = `<g class="pdeckel" style="transform:${offen ? "scaleX(0)" : "none"}"><rect x="18" y="10" width="284" height="${hoehe - 20}" rx="10" fill="#4a1420" stroke="#2a0a10" stroke-width="2"/>
+        <rect x="26" y="18" width="268" height="${hoehe - 36}" rx="6" fill="none" stroke="#c9a24a" stroke-width=".8" opacity=".6"/>
+        <text x="160" y="${hoehe / 2 - 26}" text-anchor="middle" fill="#d8b45a" font-size="11" font-family="Inter, sans-serif" letter-spacing="3">EUROPA</text>
+        <g transform="translate(160 ${hoehe / 2 + 4})" fill="none" stroke="#d8b45a" stroke-width="1.6"><circle r="16"/><path d="M-10,4 q5,-6 10,0 t10,0"/><path d="M-7,-5 l4,-7 l4,5 l4,-8 l4,10"/></g>
+        <text x="160" y="${hoehe / 2 + 44}" text-anchor="middle" fill="#d8b45a" font-size="15" font-family="Cormorant Garamond, serif" letter-spacing="4" font-weight="700">GRENZGÄNGER</text>
+        <text x="160" y="${hoehe / 2 + 60}" text-anchor="middle" fill="#b8944a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing="2">PASS DES SEERATS</text></g>`;
+    return `<h4>Der Pass der Grenzgängerin</h4><p class="gsub">Ein Stempel für jedes Land, das du mit ihnen bereist hast. ${offen ? "Tippe auf einen Stempel." : "Tippe auf den Pass, um ihn aufzuschlagen."}</p>
+      <svg class="pass" viewBox="0 0 320 ${hoehe}" role="img" aria-label="Reisepass" data-pass="1">${innen}${deckel}</svg>
+      <div class="ginfo" id="ginfo">${n ? `Stempel im Pass: <b>${n}</b>` : "Noch leer – der erste Stempel kommt mit dem ersten Band."}</div>`;
+  }
+  function gimPassInfo(r, i) {
+    if (i === "n") return "<b>Die nächste Grenze</b><small>Wohin es geht, verrät der Pass erst, wenn du dort warst.</small>";
+    const s = r.st.filter(isDone)[+i], g = s.gimmick || {};
+    return `<b>${esc(g.land || "Band " + s.reihe.teil)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}<small>${esc(g.ort || "")}${g.ort ? " · " : ""}„${esc(s.title)}“</small>`;
+  }
+  function gimmickBind() {
+    const box = document.querySelector(".gim");
+    if (!box) return;
+    const r = REIHEN.find(x => x.id === box.dataset.gim), info = box.querySelector("#ginfo");
+    box.onclick = e => {
+      const p = box.querySelector("[data-pass]");
+      const t = e.target.closest("[data-g]");
+      if (p && !prefs.passOffen) { prefs.passOffen = true; save("prefs", prefs); box.querySelector(".pdeckel").style.transform = "scaleX(0)"; box.querySelector(".gsub").textContent = "Ein Stempel für jedes Land, das du mit ihnen bereist hast. Tippe auf einen Stempel."; return; }
+      if (!t) return;
+      box.querySelectorAll(".gsel").forEach(x => x.classList.remove("gsel")); t.classList.add("gsel");
+      info.innerHTML = (r.id === "asmussen" ? gimSchirmInfo : gimPassInfo)(r, t.dataset.g);
+    };
+  }
   function karteHTML(r) {
     if (!r.karteImg) return "";
     return `<div class="karte" data-r="${r.id}"><p class="khint">${KARTE_TEXT}</p><div class="kin">${karteInner(r, r.karte)}</div></div>`;
@@ -1278,7 +1399,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!r) return header() + '<div class="wrap"><div class="empty">Diese Reihe gibt es nicht.</div></div>';
     return header() + `<div class="wrap rseite">${r.panoramaImg ? `<img class="rpano" src="${r.panoramaImg}" alt="">` : r.coverImg ? `<img class="rcov" src="${r.coverImg}" alt="">` : ""}<h2>${esc(r.titel)}</h2>${r.untertitel ? `<p class="ru">${esc(r.untertitel)}</p>` : ""}
       ${(r.beschreibung || "").split(/\n\s*\n/).map(t => `<p class="rb">${esc(t)}</p>`).join("")}
-      ${karteHTML(r)}
+      ${karteHTML(r)}${gimmickHTML(r)}
       <div class="sec"><h3>Die Bände</h3><span>in Lesereihenfolge</span></div>
       ${r.st.map(st => `<a class="libitem" href="#/story/${st.id}">${tile(st, "", true)}<div class="info"><b>Band ${st.reihe.teil} · ${esc(st.title)}</b><small>${reiheStatus(st)}</small></div></a>`).join("")}</div>`;
   }
@@ -2830,7 +2951,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (af) af.ontoggle = () => { prefs.arcOpen = af.open; save("prefs", prefs); };
     const on = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
     if (parts[0] === "fragen") bindFragen();
-    if (parts[0] === "reihe") karteBind();
+    if (parts[0] === "reihe") { karteBind(); gimmickBind(); }
     if (parts[0] === "brief") bindBrief();
     if (parts[0] === "fragebogenantworten" && !FGA && sb && fgLeser) loadBrief("fragebogen_antworten.json", d => { FGA = d; });
     if (parts[0] === "kapitelfeedbackantworten" && sb && kfbLeser) {

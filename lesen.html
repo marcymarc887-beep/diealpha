@@ -455,6 +455,11 @@ body.reading .tabbar { display: none; }
 .kfb .rgx { display: flex; justify-content: space-between; font-size: 11px; opacity: .7; margin-top: -2px; }
 .kfb .kohne { font: inherit; font-size: 12px; color: inherit; margin-top: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(128,128,128,.45); background: transparent; }
 .kfb .kohne.on { background: rgba(128,128,128,.35); }
+.kfb .kgr { margin: 14px 0 4px; padding: 10px 12px 4px; border: 1px solid rgba(128,128,128,.3); border-radius: 12px; }
+.kfb .kgh { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+.kfb .kgh small { display: block; font-weight: 400; font-size: 11px; opacity: .7; }
+.kfb .kph { margin-top: 16px; padding-top: 10px; border-top: 1px dashed rgba(128,128,128,.35); }
+.kfb .kgr > .kohne { margin: 4px 0 6px; }
 
 /* ---------- Adventskalender (seit 21.10.2026) ---------- */
 .adv { position: relative; }
@@ -2117,6 +2122,20 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   let kfbT = 0;
   const kfbV = (k, q) => ((kfb[k] || {}).a || {})[q] && kfb[k].a[q].v;
   const kfbNeu = new Set();
+  // Reglergruppen (seit 28.10.2026): {id, gruppe, ohne, fragen: [...], praktiken: {q, prefix, min, max, hinweis}} – "keine" steht unter a[gruppe.id]
+  const kfbFlach = () => KFC.fragen.flatMap(f => f.fragen ? f.fragen.map(x => Object.assign({ type: "regler" }, x)) : [f]);
+  const kfbPrakG = () => KFC.fragen.find(f => f.praktiken);
+  const kfbPrakQ = (g, name, lang) => ({ id: (g.praktiken.prefix || "prak_") + name, q: lang ? `${g.praktiken.q || "Praktik"}: ${name}` : name, type: "regler", min: g.praktiken.min, max: g.praktiken.max });
+  function kfbMitPrak(as) {                // alle Fragen + Praktik-Regler, die in den Antworten vorkommen (für Auswertungen)
+    const fl = kfbFlach(), g = kfbPrakG(), ids = new Set(fl.map(f => f.id));
+    if (g) { const pre = g.praktiken.prefix || "prak_"; [].concat(as).forEach(a => Object.keys(a || {}).forEach(id => { if (id.startsWith(pre) && !ids.has(id)) { ids.add(id); fl.push(kfbPrakQ(g, id.slice(pre.length), true)); } })); }
+    return fl;
+  }
+  function kfbPrakListe(st, ch) {          // Praktiken dieses Kapitels (build.py: chapters[].pk), sonst die des Bandes mit Hinweis
+    const pk = ((st.chapters || [])[ch] || {}).pk;
+    return pk && pk.length ? { liste: pk, hinweis: false } : { liste: st.praktiken || [], hinweis: true };
+  }
+  const kfqId = id => "kfq_" + String(id).replace(/[^A-Za-z0-9_-]/g, "_");
   function kfbFlush() {
     kfbNeu.forEach(k => {
       const [bid, ch] = k.split("/"), st = byId[bid];
@@ -2134,25 +2153,47 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       <div class="rgx"><span>1 = ${esc(f.min || "")}</span><span>10 = ${esc(f.max || "")}</span></div>
       ${f.ohne ? `<button type="button" class="kohne ${ohne ? "on" : ""}" data-ko="${f.id}">${esc(f.ohne)}</button>` : ""}`;
   }
+  function kfbGruppe(k, g, st, ch) {
+    const keine = kfbV(k, g.id) === "keine";
+    let h = `<h4 class="kgh">${esc(g.gruppe)}</h4>${g.ohne ? `<button type="button" class="kohne ${keine ? "on" : ""}" data-ko="${g.id}">${esc(g.ohne)}</button>` : ""}`;
+    if (keine) return h;
+    const fq = g.fragen.map(f => Object.assign({ type: "regler" }, f)), zeig = f => `<div class="q" id="${kfqId(f.id)}">${kfbQ(k, f)}</div>`;
+    h += fq.filter(f => f.type !== "text").map(zeig).join("");
+    if (g.praktiken) {
+      const { liste, hinweis } = kfbPrakListe(st, ch);
+      if (liste.length) h += `<h4 class="kgh kph">${esc(g.praktiken.q || "Praktiken")}${hinweis && g.praktiken.hinweis ? `<small>${esc(g.praktiken.hinweis)}</small>` : ""}</h4>`
+        + liste.map(n => zeig(kfbPrakQ(g, n))).join("");
+    }
+    return h + fq.filter(f => f.type === "text").map(zeig).join("");   // Textfeld der Gruppe ans Ende
+  }
   function kfbHTML(st, ch) {
     if (!kfbFuer(st)) return "";
     const k = st.id + "/" + ch, n = Object.values((kfb[k] || {}).a || {}).filter(x => x.v !== "" && x.v != null).length;
     return `<details class="fbb kfb" id="kfb" data-k="${k}"><summary>Kurzes Feedback zu diesem Kapitel${n ? ` <b>· ${n} ✓</b>` : ""}<small>optional · speichert sich von selbst</small></summary>
-      <div class="fbbi">${KFC.fragen.map(f => `<div class="q" id="kfq_${f.id}">${kfbQ(k, f)}</div>`).join("")}
+      <div class="fbbi">${KFC.fragen.map(f => f.fragen ? `<div class="kgr" id="kfg_${f.id}">${kfbGruppe(k, f, st, ch)}</div>` : `<div class="q" id="${kfqId(f.id)}">${kfbQ(k, f)}</div>`).join("")}
       <div class="fbbs"><span id="kfbMsg"></span></div></div></details>`;
   }
   function kfbBind() {
     const box = document.getElementById("kfb");
     if (!box) return;
-    const k = box.dataset.k, byF = Object.fromEntries(KFC.fragen.map(f => [f.id, f]));
+    const k = box.dataset.k, [bid, ch] = k.split("/"), st = byId[bid], g = kfbPrakG();
+    const byF = Object.fromEntries(kfbFlach().concat(g && st ? kfbPrakListe(st, +ch).liste.map(n => kfbPrakQ(g, n)) : []).map(f => [f.id, f]));
     box.onclick = e => {
       const b = e.target.closest(".kohne");
       if (!b) return;
+      const grp = KFC.fragen.find(f => f.fragen && f.id === b.dataset.ko);
+      if (grp) {                               // Gruppe: „keine Szene“ klappt sie zu und leert ihre Regler
+        const an = kfbV(k, grp.id) !== "keine";
+        if (an) Object.keys((kfb[k] || {}).a || {}).forEach(id => { if (id !== grp.id && (grp.fragen.some(f => f.id === id) || (grp.praktiken && id.startsWith(grp.praktiken.prefix || "prak_"))) && kfbV(k, id) !== "" && kfbV(k, id) != null) kfbSet(k, id, ""); });
+        kfbSet(k, grp.id, an ? "keine" : "");
+        document.getElementById("kfg_" + grp.id).innerHTML = kfbGruppe(k, grp, st, +ch);
+        return;
+      }
       const f = byF[b.dataset.ko];
       kfbSet(k, f.id, kfbV(k, f.id) === "keine" ? "" : "keine");
-      document.getElementById("kfq_" + f.id).innerHTML = kfbQ(k, f);
+      document.getElementById(kfqId(f.id)).innerHTML = kfbQ(k, f);
     };
-    box.onchange = e => { const r = e.target; if (r.type === "range") { kfbSet(k, r.dataset.kq, +r.value); document.getElementById("kfq_" + r.dataset.kq).innerHTML = kfbQ(k, byF[r.dataset.kq]); } };
+    box.onchange = e => { const r = e.target; if (r.type === "range" && byF[r.dataset.kq]) { kfbSet(k, r.dataset.kq, +r.value); document.getElementById(kfqId(r.dataset.kq)).innerHTML = kfbQ(k, byF[r.dataset.kq]); } };
     box.oninput = e => {
       const t = e.target;
       if (t.type === "range") { t.classList.remove("unset"); t.parentNode.querySelector("b").textContent = t.value; return; }
@@ -2160,7 +2201,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       clearTimeout(kfbT);
       kfbT = setTimeout(() => { kfbT = 0; kfbSet(k, t.dataset.kt, t.value); }, 700);
     };
-    box.querySelectorAll("textarea").forEach(t => { t.onblur = () => { if (kfbT) { clearTimeout(kfbT); kfbT = 0; kfbSet(k, t.dataset.kt, t.value); } }; });
+    box.addEventListener("focusout", e => { const t = e.target; if (t.tagName === "TEXTAREA" && kfbT) { clearTimeout(kfbT); kfbT = 0; kfbSet(k, t.dataset.kt, t.value); } });   // auch für neu gezeichnete Gruppen
   }
   /* Kapitelfeedback für Markus: live aus allen progress-Zeilen (RLS: nur Markus), mit Auswertung je Band */
   let KFL = null;
@@ -2178,7 +2219,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     if (!KFL) return h + '<div class="loading">Lädt …</div></div>';
     if (KFL.fehler) return h + '<div class="empty">Konnte nicht geladen werden.</div></div>';
     const z = t => t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–";
-    const regler = KFC.fragen.filter(f => f.type === "regler"), texte = KFC.fragen.filter(f => f.type === "text");
+    const texte = kfbFlach().filter(f => f.type === "text");
     const gesehen = prefs.kfbGesehen || {}, neuGesehen = Object.assign({}, gesehen);
     let leer = true;
     (KFC.baende || []).forEach(nr => {
@@ -2195,6 +2236,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       leer = false;
       kap.sort((x, y) => x.ch - y.ch);
       const titel = ch => (st.chapters && st.chapters[ch] && st.chapters[ch].title) || "";
+      const alle = kfbMitPrak(kap.map(k => k.a)), regler = alle.filter(f => f.type === "regler");
       // Auswertung
       let sum = '<table>';
       regler.forEach(f => {
@@ -2206,13 +2248,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         sum += `<tr><td>${esc(f.q)}<br><small>${n.length ? `niedrigste: Kap. ${lo.ch + 1} (${lo.a[f.id].v}) · höchste: Kap. ${hi.ch + 1} (${hi.a[f.id].v})` : ""}${keine ? `${n.length ? " · " : ""}${keine}× keine Szene` : ""}</small></td><td class="z">Ø ${avg}<br><small>${n.length} Kap.</small></td></tr>`;
       });
       sum += "</table>";
-      const bem = kap.flatMap(k => texte.filter(f => k.a[f.id] && String(k.a[f.id].v).trim()).map(f => `<li><b>Kap. ${k.ch + 1}:</b> ${esc(String(k.a[f.id].v).trim())}</li>`));
+      const bem = kap.flatMap(k => texte.filter(f => k.a[f.id] && String(k.a[f.id].v).trim()).map(f => `<li><b>Kap. ${k.ch + 1}${texte.length > 1 ? " · " + esc(f.q) : ""}:</b> ${esc(String(k.a[f.id].v).trim())}</li>`));
       h += `<div class="sec"><h3>${esc(st.title)}</h3><span>Band ${nr} · ${kap.length} Kapitel mit Feedback</span></div>
         <div class="ksum"><b>Auswertung</b>${sum}${bem.length ? `<b>Alle Bemerkungen</b><ul class="kbem">${bem.join("")}</ul>` : ""}</div>`;
       kap.forEach(k => {
         const key = st.id + "/" + k.ch, neu = k.t > (gesehen[key] || 0), offen = ziel && ziel[0] === st.id && +ziel[1] === k.ch;
         neuGesehen[key] = Math.max(neuGesehen[key] || 0, k.t);
-        h += `<details class="kk ${neu ? "neu" : ""}" id="kk_${st.id}_${k.ch}" ${offen || neu ? "open" : ""}><summary><b>Kap. ${k.ch + 1}${titel(k.ch) ? " · " + esc(titel(k.ch)) : ""}</b><span>${neu ? '<span class="neu">neu</span> · ' : ""}${z(k.t)}</span></summary><dl>${KFC.fragen.filter(f => k.a[f.id] && k.a[f.id].v !== "" && k.a[f.id].v != null).map(f => {
+        h += `<details class="kk ${neu ? "neu" : ""}" id="kk_${st.id}_${k.ch}" ${offen || neu ? "open" : ""}><summary><b>Kap. ${k.ch + 1}${titel(k.ch) ? " · " + esc(titel(k.ch)) : ""}</b><span>${neu ? '<span class="neu">neu</span> · ' : ""}${z(k.t)}</span></summary><dl>${alle.filter(f => k.a[f.id] && k.a[f.id].v !== "" && k.a[f.id].v != null).map(f => {
           const v = k.a[f.id].v;
           return `<dt>${esc(f.q)}</dt><dd>${v === "keine" ? "keine Szene" : typeof v === "number" ? v + "/10" : esc(String(v))}</dd>`;
         }).join("")}</dl></details>`;
@@ -2444,7 +2486,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const zeile = (q, v) => `<dt>${esc(q)}</dt><dd>${esc(v)}</dd>`, wert = v => Array.isArray(v) ? v.join(" · ") : v === "keine" ? "keine Szene" : typeof v === "number" ? v + "/10" : String(v);
     if (e.art === "kapitelfeedback" && KFC) {
       const a = ((d.kfb || {})[e.ref.buch + "/" + e.ref.kapitel] || {}).a || {};
-      return (KFC.fragen.filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>")
+      return (kfbMitPrak(a).filter(f => a[f.id] && a[f.id].v !== "" && a[f.id].v != null).map(f => zeile(f.q, wert(a[f.id].v))).join("") || "<dd>(inzwischen leer)</dd>")
         + `<dd><a href="#/kapitelfeedbackantworten/${e.ref.buch}/${e.ref.kapitel}">Im Kapitelfeedback ansehen ›</a></dd>`;
     }
     if (e.art === "buchfeedback" && FBC) {

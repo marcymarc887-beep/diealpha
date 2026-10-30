@@ -1591,6 +1591,25 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const seiten = gelesen.length + (naechster ? 1 : 0);
     if (gimSeite == null || gimSeite >= seiten) gimSeite = Math.max(0, gelesen.length - 1);
     const i = gimSeite, s = gelesen[i], zu = !s, g = (s && s.gimmick) || {};
+    const BILD = DATA.app.gimmickBilder || {};
+    if (BILD.maerchenbuch) {   // gemaltes Bild gimmicks/maerchenbuch (1000×671): linke Seite innen x 200–450, rechter Rahmen x 550–830, Wachssiegel bei (855, 410)
+      const sg = (gebrochen) => `<g transform="translate(855 410) scale(2.7)"><path d="M0,-17 C9,-18 17,-10 17,0 C18,9 9,17 0,17 C-10,18 -17,9 -17,0 C-18,-10 -9,-17 0,-17 Z" fill="#8f1d24"/><circle r="12" fill="#a8262e"/>${SIEGEL[g.siegel || ""] || SIEGEL[""]}${gebrochen ? '<path d="M-4,-17 l3,9 -4,6 4,8 -2,11" stroke="#3a0a0e" stroke-width="1.2" fill="none"/>' : ""}</g>`;
+      const T = (x, y, s, fs, fill, extra = "") => `<text x="${x}" y="${y}" text-anchor="middle" fill="${fill}" font-size="${fs}" ${extra}>${s}</text>`, CG = 'font-family="Cormorant Garamond, serif"', IN = 'font-family="Inter, sans-serif"';
+      const titel = zu ? "" : g.maerchen || s.title, fall = zu ? "" : g.fall || s.title;
+      const links = zu ? T(325, 290, "Diese Seite", 26, "#7a6a4a", CG + ' font-style="italic"') + T(325, 324, "ist noch nicht geschrieben.", 26, "#7a6a4a", CG + ' font-style="italic"')
+        : `<rect x="290" y="150" width="70" height="70" fill="#8f1d24"/>${T(325, 206, esc(titel.charAt(0)), 60, "#f3d27a", CG + ' font-weight="700"')}
+          ${T(325, 262, esc(titel), Math.min(34, Math.round(560 / Math.max(1, titel.length))), "#3a2a14", CG + ' font-weight="700"')}${T(325, 292, "MÄR · " + esc((g.jahr || "").toUpperCase()), 15, "#7a5a2a", IN + ' letter-spacing="3"')}
+          ${[0, 1, 2, 3, 4].map(k => `<path d="M225,${325 + k * 26} H${k === 4 ? 340 : 425}" stroke="#b8a888" stroke-width="2.4" opacity=".5"/>`).join("")}`;
+      const rechts = zu ? sg(false) + T(690, 260, "VERSIEGELT", 22, "#7a6a4a", IN + ' letter-spacing="4"')
+        : `${T(690, 170, "DER FALL", 18, "#7a5a2a", IN + ' letter-spacing="4"')}${T(690, 222, esc(fall), Math.min(42, Math.round(620 / Math.max(1, fall.length))), "#2a1a0a", CG + ' font-weight="700"')}
+          ${T(690, 262, esc(g.ort || ""), Math.min(20, Math.round(470 / Math.max(1, (g.ort || "").length))), "#5a4a2a", IN)}${T(690, 330, "GELÖST · " + esc(s.reihe.teil + ". FALL"), 17, "#7a5a2a", IN + ' letter-spacing="3"')}${sg(true)}`;
+      const knopf = (x, y, d, z) => `<g data-gb="${d}" tabindex="0"><circle cx="${x}" cy="${y}" r="24" fill="#2a1a10" opacity=".9"/><text x="${x}" y="${y + 10}" text-anchor="middle" fill="#e8c27a" font-size="32">${z}</text></g>`;
+      return `<h4>Idas Märchenbuch</h4><p class="gsub">Eine Seite für jeden gelösten Fall, mit rotem Wachs gesiegelt. ${seiten > 1 ? "Blättere mit ‹ ›." : ""}</p>
+        <svg viewBox="0 0 1000 671" role="img" aria-label="Märchenbuch"><image href="${BILD.maerchenbuch}" width="1000" height="671"/>
+          ${links}${rechts}${i > 0 ? knopf(225, 525, -1, "‹") : ""}${i < seiten - 1 ? knopf(905, 480, 1, "›") : ""}
+          ${seiten ? T(330, 562, `Seite ${i + 1} von ${seiten}`, 17, "#8a6a3a", IN) : ""}
+        </svg><div class="ginfo" id="ginfo">${zu ? "<b>Die nächste Mär</b><small>Welches Märchen hier wartet, verrät erst der nächste Fall.</small>" : `<b>${esc(g.maerchen || "")}</b> · ${esc(g.fall || s.title)}<small>${esc([g.ort, g.jahr].filter(Boolean).join(" · "))}</small>${g.zeile ? `<i>${esc(g.zeile)}</i>` : ""}`}</div>`;
+    }
     const siegel = (x, y, gebrochen) => `<g transform="translate(${x} ${y})"><path d="M0,-17 C9,-18 17,-10 17,0 C18,9 9,17 0,17 C-10,18 -17,9 -17,0 C-18,-10 -9,-17 0,-17 Z" fill="#8f1d24"/><circle r="12" fill="#a8262e"/>${SIEGEL[g.siegel || ""] || SIEGEL[""]}${gebrochen ? '<path d="M-4,-17 l3,9 -4,6 4,8 -2,11" stroke="#3a0a0e" stroke-width="1.2" fill="none"/>' : ""}</g>`;
     const links = zu ? `<text x="88" y="120" text-anchor="middle" fill="#7a6a4a" font-size="11" font-family="Cormorant Garamond, serif" font-style="italic">Diese Seite</text><text x="88" y="136" text-anchor="middle" fill="#7a6a4a" font-size="11" font-family="Cormorant Garamond, serif" font-style="italic">ist noch nicht geschrieben.</text>`
       : `<rect x="34" y="40" width="34" height="34" fill="#8f1d24"/><text x="51" y="68" text-anchor="middle" fill="#f3d27a" font-size="30" font-family="Cormorant Garamond, serif" font-weight="700">${esc((g.maerchen || s.title).charAt(0))}</text>

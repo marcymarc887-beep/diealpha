@@ -268,6 +268,7 @@ body.reading .tabbar { display: none; }
 .gim .ginfo b { color: var(--accent); }
 .gim .ginfo i { display: block; margin-top: 4px; font-family: Literata, Georgia, serif; color: #d9cfb8; }
 .gim .ginfo small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.gim .gbild { display: block; width: 100%; height: auto; margin-top: 10px; border-radius: 8px; }
 .gim .gsel { filter: drop-shadow(0 0 6px rgba(255,215,120,.9)); }
 .azakte { margin-top: 18px; padding: 14px 14px 10px 16px; background: #d8d6cc; color: #1e1e1e; border-radius: 3px; box-shadow: 0 2px 10px rgba(0,0,0,.4); font: 12.5px/1.55 "Courier New", Courier, monospace; position: relative; }
 .azakte .azkopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: #444; }
@@ -1657,7 +1658,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   /* Tausend Tore (30.10.2026): Kaedes Faltfächer mit neun Feldern; pro gelesenem Band öffnet er sich um ein Feld.
      Alle Felder sind Ausschnitte eines Tuschebildes (Füchsin mit neun Schattenschwänzen, Nebelburg, roter Torweg). */
   function gimFaecher(r, gelesen, naechster) {
-    const W = 160 / 9, R1 = 46, R2 = 150, P = (rr, a) => { const t = a * Math.PI / 180; return [(160 + rr * Math.sin(t)).toFixed(1), (214 - rr * Math.cos(t)).toFixed(1)]; };
+    const A0 = -66.6, W = -2 * A0 / 9, R1 = 67, R2 = 149, BILD = (DATA.app.gimmickBilder || {}), P = (rr, a) => { const t = a * Math.PI / 180; return [(160 + rr * Math.sin(t)).toFixed(1), (214 - rr * Math.cos(t)).toFixed(1)]; };
     const pp = (rr, a) => P(rr, a).join(","), sek = (a1, a2, r1 = R1, r2 = R2) => `M${pp(r2, a1)} A${r2},${r2} 0 0 1 ${pp(r2, a2)} L${pp(r1, a2)} A${r1},${r1} 0 0 0 ${pp(r1, a1)} Z`;
     const n = Math.min(9, gelesen.length), letzt = gelesen[n - 1], g9 = (letzt && letzt.gimmick) || {}, voll = n >= 9 && !!g9.vollendet;
     const ink = "#2b2724", rot = "#c23a2a";
@@ -1681,23 +1682,23 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     { const [hx, hy] = P(108, 70), b = P(102, 54); bild += `<path d="M${wurzel} Q${b} ${hx - 8},${hy + 2}" fill="none" stroke="${ink}" stroke-width="15" stroke-linecap="round" opacity=".5"/>
       <g transform="translate(${hx} ${hy})"><path d="M-12,5 Q-10,-7 -1,-9 L2,-19 L6,-8 Q10,-12 12,-16 L13,-6 Q17,-2 20,4 Q8,10 -12,5 Z" fill="${ink}" opacity=".62"/><path d="M4,-2 q3,1.5 6,0" stroke="#f3ead6" stroke-width="1" fill="none"/></g>`;
       const [tx, ty] = P(134, 60); bild += torii(tx, ty, 1.5) + `<path d="M${tx - 16},${ty + 8} q8,-3 16,0 t16,0" stroke="#d8d2c4" stroke-width="3" fill="none" opacity=".9" stroke-linecap="round"/>`; }
-    const auf = Array.from({ length: n }, (_, k) => [-80 + k * W, -80 + (k + 1) * W]);
+    const auf = Array.from({ length: n }, (_, k) => [A0 + k * W, A0 + (k + 1) * W]);
     const felder = auf.map(([a1, a2], k) => `<path d="${sek(a1, a2)}" fill="#f3ead6" stroke="#cdbf9e" stroke-width=".5"/>`).join("");
     const knick = auf.map(([a1]) => `<path d="M${pp(R1, a1)} L${pp(R2, a1)}" stroke="#bfae88" stroke-width=".6"/>`).join("");
     const klick = auf.map(([a1, a2], k) => `<path data-g="${k}" tabindex="0" d="${sek(a1, a2)}" fill="transparent"/>`).join("");
-    const rand = n ? `<path d="M${pp(R2 - 4, -80)} A${R2 - 4},${R2 - 4} 0 0 1 ${pp(R2 - 4, -80 + n * W)}" fill="none" stroke="${rot}" stroke-width="3"/><path d="M${pp(R1 + 2, -80)} A${R1 + 2},${R1 + 2} 0 0 1 ${pp(R1 + 2, -80 + n * W)}" fill="none" stroke="${rot}" stroke-width="1.5"/>` : "";
+    const rand = n ? `<path d="M${pp(R2 - 4, A0)} A${R2 - 4},${R2 - 4} 0 0 1 ${pp(R2 - 4, A0 + n * W)}" fill="none" stroke="${rot}" stroke-width="3"/><path d="M${pp(R1 + 2, A0)} A${R1 + 2},${R1 + 2} 0 0 1 ${pp(R1 + 2, A0 + n * W)}" fill="none" stroke="${rot}" stroke-width="1.5"/>` : "";
     const stab = a => `<path d="M160,214 L${pp(R2 + 2, a)}" stroke="#7a5a30" stroke-width="3.2" stroke-linecap="round"/><path d="M160,214 L${pp(R2, a)}" stroke="#b08850" stroke-width="1.2" stroke-linecap="round"/>`;
-    const sticks = Array.from({ length: n + 1 }, (_, k) => `<path d="M160,214 L${pp(R1, -80 + k * W)}" stroke="#a8814a" stroke-width="3" stroke-linecap="round"/>`).join("");
-    const zuA = -80 + n * W, buendel = n < 9 ? Array.from({ length: 9 - n }, (_, k) => `<path d="${sek(zuA + k * .5, zuA + k * .5 + 1.4)}" fill="#e8dcc0" stroke="#a8946a" stroke-width=".5"/>`).join("") + stab(zuA + (9 - n) * .5 + 1.4) : stab(80);
+    const sticks = Array.from({ length: n + 1 }, (_, k) => `<path d="M160,214 L${pp(R1, A0 + k * W)}" stroke="#a8814a" stroke-width="3" stroke-linecap="round"/>`).join("");
+    const zuA = A0 + n * W, buendel = n < 9 ? Array.from({ length: 9 - n }, (_, k) => `<path d="${sek(zuA + k * .5, zuA + k * .5 + 1.4)}" fill="#e8dcc0" stroke="#a8946a" stroke-width=".5"/>`).join("") + stab(zuA + (9 - n) * .5 + 1.4) : stab(-A0);
     const schw = (g9.schwaenze || 0), schwStriche = Array.from({ length: schw }, (_, k) => `<path d="M${160 - (schw - 1) * 7 + k * 14},40 q-6,-8 -2,-18 q2,6 5,8" fill="none" stroke="#cbbfa6" stroke-width="2.4" stroke-linecap="round" opacity=".85"/>`).join("");
     return `<h4>Kaedes Fächer</h4><p class="gsub">Mit jedem Band öffnet er sich um ein Feld. ${n ? "Tippe auf ein Feld." : "Noch ist er geschlossen."}</p>
       <svg viewBox="0 0 320 236" role="img" aria-label="Fächer">
         <rect width="320" height="236" rx="10" fill="#141012"/>
         <defs><clipPath id="ttAuf${n}">${auf.map(([a1, a2]) => `<path d="${sek(a1, a2)}"/>`).join("")}</clipPath></defs>
         ${schw ? schwStriche + `<text x="160" y="54" text-anchor="middle" fill="#a89a80" font-size="8" font-family="Inter, sans-serif" letter-spacing="1.5">${schw} ${schw === 1 ? "SCHWANZ" : "SCHWÄNZE"}${g9.jahr ? " · " + esc(g9.jahr).toUpperCase() : ""}</text>` : ""}
-        <g transform="rotate(${n < 9 ? (77 - (n * W + 6) / 2).toFixed(1) : 0} 160 214)">${stab(-80)}${sticks}${felder}<g clip-path="url(#ttAuf${n})">${bild}</g>${knick}${rand}${buendel}${klick}</g>
+        <g transform="rotate(${n < 9 ? (-(A0 + (n * W + 6) / 2)).toFixed(1) : 0} 160 214)">${stab(A0)}${sticks}${felder}<g clip-path="url(#ttAuf${n})">${BILD.faecher ? `<image href="${BILD.faecher}" x="10.2" y="52.7" width="299.6" height="148.2" preserveAspectRatio="none"/>` : bild}</g>${knick}${rand}${buendel}${klick}</g>
         <circle cx="160" cy="214" r="5" fill="#2a1a10" stroke="#b08850" stroke-width="1.2"/><path d="M160,219 q-3,8 0,14 q3,-6 0,-14" fill="${rot}"/>
-      </svg><div class="ginfo" id="ginfo">${voll ? `<b>Der ganze Fächer</b><i>${esc(g9.gesamtbild || "")}</i>` : n ? `Offen: <b>${n}</b> von 9 Feldern` : "Lies den ersten Band, dann öffnet sich das erste Feld."}</div>`;
+      </svg><div class="ginfo" id="ginfo">${voll ? `<b>Der ganze Fächer</b><i>${esc(g9.gesamtbild || "")}</i>${BILD.faecher_epilog ? `<img class="gbild" src="${BILD.faecher_epilog}" alt="Der Fächer auf dem Sockel" loading="lazy">` : ""}` : n ? `Offen: <b>${n}</b> von 9 Feldern` : "Lies den ersten Band, dann öffnet sich das erste Feld."}</div>`;
   }
   function gimFaecherInfo(r, i) {
     const s = r.st.filter(isDone)[+i], g = s.gimmick || {};

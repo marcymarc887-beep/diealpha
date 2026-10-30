@@ -1580,6 +1580,16 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const weiter = naechster && stationen.length ? `<g data-g="n" tabindex="0" opacity=".55"><path d="M${letzt[0]},${letzt[1]} q30,-30 ${292 - letzt[0]},${-letzt[1] + 26}" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 5"/><text x="296" y="28" text-anchor="end" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
     const g = gelesen.length ? gelesen[gelesen.length - 1].gimmick || {} : {}, stand = gelesen.length && g.schulden != null ? g.schulden : null;
     const ziffern = stand == null ? "???.???" : String(stand).padStart(7, "0").replace(/^(\d)(\d{3})(\d{3})$/, "$1$2.$3").replace(/^0+(?=\d)/, m => " ".repeat(m.length));
+    const BILD = DATA.app.gimmickBilder || {};
+    const buch = `<g transform="translate(60 196)"><rect width="200" height="42" rx="6" fill="#1b140c" stroke="#8a6a2a"/>
+          <text x="100" y="12" text-anchor="middle" fill="#b8944a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing="1.5">ZORAS SCHULDBUCH · OFFEN</text>
+          <text x="100" y="34" text-anchor="middle" fill="${stand ? "#ff9a7a" : "#e8d9b0"}" font-size="18" font-family="Courier New, monospace" font-weight="700" xml:space="preserve">${esc(ziffern)} Kr</text></g>`;
+    if (BILD.sternkarte) {   // gemaltes Bild gimmicks/sternkarte (1000×671) als Hintergrund, Route und Schuldbuch wie gehabt (skaliert)
+      return `<h4>Die Route der Elster</h4><p class="gsub">Jeder Band ein Stück Weg entlang der Perlenschnur – und Zoras Schuldbuch rechnet mit.</p>
+        <svg viewBox="0 0 1000 671" role="img" aria-label="Sternenroute"><defs><radialGradient id="gstern"><stop offset="0" stop-color="rgba(255,220,140,.55)"/><stop offset="1" stop-color="rgba(255,200,100,0)"/></radialGradient></defs>
+          <image href="${BILD.sternkarte}" width="1000" height="671"/><g transform="translate(71 0) scale(2.68)">${route}${sterne}${weiter}${stationen.length ? elster : ""}${buch}</g>
+        </svg><div class="ginfo" id="ginfo">${gelesen.length ? (g.schuld_text ? esc(g.schuld_text) : "Tippe auf einen Stern.") : "Noch liegt die Elster im Dock."}</div>`;
+    }
     return `<h4>Die Route der Elster</h4><p class="gsub">Jeder Band ein Stück Weg entlang der Perlenschnur – und Zoras Schuldbuch rechnet mit.</p>
       <svg viewBox="0 0 320 250" role="img" aria-label="Sternenroute">
         <defs><radialGradient id="gstern"><stop offset="0" stop-color="rgba(255,220,140,.55)"/><stop offset="1" stop-color="rgba(255,200,100,0)"/></radialGradient>

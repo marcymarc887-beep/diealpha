@@ -1465,6 +1465,23 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   const ARCHE_EXTRA = [["achse", "Die Achse"], ["huelle", "Die Außenhülle · Teleskop „Auge“"], ["lichtung", "Die Lichtung · erster Landeplatz"]];   // keine Stockwerke: Linie durch die Mitte, Umriss ums Schiff (1405); Lichtung = Zielplanet neben dem Schiff (1410)
   function gimArche(r, gelesen, naechster) {
     const bekannt = {}; gelesen.forEach((s, i) => ((s.gimmick || {}).decks || []).forEach(d => { if (!(d in bekannt)) bekannt[d] = i; }));
+    const BILD = DATA.app.gimmickBilder || {};
+    if (BILD.arche) {   // gemaltes Bild gimmicks/arche (671×1000): Decks als Bänder [y1, y2, x1, x2]; Unbekanntes bleibt verschleiert
+      const LAGE = { bruecke: [55, 186, 190, 480], archiv: [188, 286, 135, 535], ring1: [288, 344, 110, 555], ring2: [346, 402, 105, 560], kuppeln: [406, 484, 100, 565],
+        wildring: [488, 592, 100, 568], mittelring: [594, 692, 105, 565], ring6: [694, 742, 112, 555], ring7: [744, 790, 125, 545], kessel: [792, 945, 150, 520] };
+      const decks = ARCHE_DECKS.map(([id, name]) => { const [y1, y2, x1, x2] = LAGE[id], an = id in bekannt;
+        return `<g ${an ? `data-g="${bekannt[id]}:${id}" tabindex="0"` : ""}><rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" rx="8" fill="${an ? "rgba(127,216,200,.06)" : "rgba(4,4,10,.72)"}" stroke="${an ? "#7fd8c8" : "none"}" stroke-width="3"/>
+          ${an ? `<text x="${x1 + 14}" y="${y1 + 24}" fill="#e8f4d0" stroke="#0c0b12" stroke-width="5" paint-order="stroke" font-size="17" font-family="Inter, sans-serif" font-weight="600">${esc(name)}</text>` : ""}</g>`; }).join("");
+      const achse = "achse" in bekannt ? `<g data-g="${bekannt.achse}:achse" tabindex="0"><rect x="302" y="140" width="60" height="660" rx="10" fill="rgba(127,216,200,.12)" stroke="#7fd8c8" stroke-width="3" stroke-dasharray="4 8"/></g>` : "";
+      const huelle = "huelle" in bekannt ? `<g data-g="${bekannt.huelle}:huelle" tabindex="0"><ellipse cx="335" cy="505" rx="250" ry="478" fill="none" stroke="#7fd8c8" stroke-width="4" stroke-dasharray="14 8" opacity=".8"/>
+          <circle cx="532" cy="152" r="34" fill="rgba(127,216,200,.15)" stroke="#7fd8c8" stroke-width="3"/></g>` : "";
+      const planet = "lichtung" in bekannt ? `<g data-g="${bekannt.lichtung}:lichtung" tabindex="0"><circle cx="92" cy="96" r="58" fill="#3a2a22" stroke="#f0a04a" stroke-width="3"/>
+          <ellipse cx="92" cy="92" rx="18" ry="10" fill="#4a8a4a" stroke="#e8f4d0" stroke-width="1.5"/><text x="92" y="176" text-anchor="middle" fill="#f4c890" stroke="#0c0b12" stroke-width="4" paint-order="stroke" font-size="16" font-family="Inter, sans-serif" letter-spacing="2">LICHTUNG</text></g>`
+        : `<g opacity=".7"><circle cx="92" cy="96" r="50" fill="none" stroke="#6a6680" stroke-width="2" stroke-dasharray="6 8"/><text x="92" y="108" text-anchor="middle" fill="#8a86a0" font-size="34" font-family="Cormorant Garamond, serif">?</text></g>`;
+      return `<h4>Der Deckplan der Arche</h4><p class="gsub">Mit jedem Band lernst du ein Deck kennen. ${gelesen.length ? "Tippe auf ein Deck." : "Noch ist das Schiff dunkel."}</p>
+        <svg viewBox="0 0 671 1000" role="img" aria-label="Deckplan"><image href="${BILD.arche}" width="671" height="1000"/>${decks}${achse}${huelle}${planet}</svg>
+        <div class="ginfo" id="ginfo">${gelesen.length ? `Bekannte Decks: <b>${Object.keys(bekannt).length}</b> von ${ARCHE_DECKS.length + ARCHE_EXTRA.length}` : "Lies den ersten Band, dann gehen die ersten Lichter an."}</div>`;
+    }
     let y = 40, decks = "";
     ARCHE_DECKS.forEach(([id, name, h], k) => {
       const an = id in bekannt, w = id === "bruecke" ? 70 : id === "kessel" ? 96 : id === "archiv" ? 84 : 128, x = 112 - w / 2;

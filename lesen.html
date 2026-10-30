@@ -1321,6 +1321,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       } else neu += schirm(x, w, h, g.farbe || "#6a2a3a", "neu", `data-g="${i}" tabindex="0"`);
     });
     const ahnung = naechster ? `<g opacity=".5" data-g="n" tabindex="0"><path d="M${200},152 Q198,70 212,42 Q206,70 210,152 Z" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 4"/><text x="214" y="38" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
+    const BILD = DATA.app.gimmickBilder || {};
+    if (BILD.schirmstaender) {   // gemaltes Bild gimmicks/schirmstaender (671×1000): Öffnung des Ständers um (335, 500); Schirme wie oben, nur skaliert
+      return `<h4>Veras Schirmständer</h4><p class="gsub">Für jeden gelösten Fall ein Schirm. ${gelesen.length ? "Tippe auf einen Schirm." : "Noch steht nur ihr alter Schirm darin."}</p>
+        <svg viewBox="0 0 671 1000" role="img" aria-label="Schirmständer"><image href="${BILD.schirmstaender}" width="671" height="1000"/>
+          <g transform="translate(-33 155) scale(2.3)">${spuren}${neu}${ahnung}</g>
+          <text x="335" y="985" text-anchor="middle" fill="#e8d8b0" stroke="#0d0b0e" stroke-width="4" paint-order="stroke" font-size="20" font-family="Inter, sans-serif" letter-spacing="4">ASMUSSEN &amp; SÖHNE · SEIT 1871</text>
+        </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Gelöste Fälle: <b>${gelesen.length}</b>` : "Lies den ersten Fall, dann bekommt Vera ihren ersten Schirm."}</div>`;
+    }
     return `<h4>Veras Schirmständer</h4><p class="gsub">Für jeden gelösten Fall ein Schirm. ${gelesen.length ? "Tippe auf einen Schirm." : "Noch steht nur die alte Sammlung darin."}</p>
       <svg viewBox="0 0 320 270" role="img" aria-label="Schirmständer">
         <defs><radialGradient id="glamp" cx="78%" cy="8%" r="80%"><stop offset="0" stop-color="#5a4524"/><stop offset=".45" stop-color="#1d1712"/><stop offset="1" stop-color="#0d0b0e"/></radialGradient>

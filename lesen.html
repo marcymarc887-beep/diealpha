@@ -1389,6 +1389,27 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* Mondschacht: Fördergerüst und Schacht; je gelesenem Band eine Sohle tiefer, dort brennt die Grubenlampe, der Korb steht auf der tiefsten */
   function gimSchacht(r, gelesen, naechster) {
+    const BILD = DATA.app.gimmickBilder || {};
+    if (BILD.mondschacht) {   // gemaltes Bild gimmicks/mondschacht (330×1000): 20 Sohlen abwechselnd links/rechts, Korb im Schacht (x 165)
+      const sy = i => Math.round(298 + i * 32.4), m = Math.min(20, Math.max(r.st.length, gelesen.length + 1));
+      let sohlen = "";
+      for (let i = 0; i < 20; i++) {
+        const y = sy(i), an = i < gelesen.length, nx = !an && i === gelesen.length && naechster && i < m, links = i % 2 === 0;
+        const x1 = links ? 38 : 176, x2 = links ? 156 : 294, lx = links ? 60 : 272, g = an ? gelesen[i].gimmick || {} : {};
+        sohlen += `<g ${an || nx ? `data-g="${an ? i : "n"}" tabindex="0"` : ""}><rect x="${x1}" y="${y - 15}" width="${x2 - x1}" height="28" rx="4" fill="${an ? "rgba(255,190,90,.12)" : nx ? "rgba(0,0,0,.35)" : "rgba(0,0,0,.62)"}"/>
+          ${an ? `<circle cx="${lx}" cy="${y}" r="15" fill="url(#glampe)"/><circle cx="${lx}" cy="${y}" r="2.6" fill="#fff4c8"/>
+          <text x="${links ? x1 + 40 : x2 - 40}" y="${y + 4}" text-anchor="${links ? "start" : "end"}" fill="#f0dcae" stroke="#120e0a" stroke-width="3" paint-order="stroke" font-size="9" font-family="Inter, sans-serif" letter-spacing=".5">${i + 1}. SOHLE${g.jahr ? " · " + esc(g.jahr) : ""}</text>` : nx ? `<text x="${links ? x1 + 40 : x2 - 40}" y="${y + 4}" text-anchor="${links ? "start" : "end"}" fill="#a89a7a" stroke="#120e0a" stroke-width="3" paint-order="stroke" font-size="9" font-family="Inter, sans-serif">${i + 1}. SOHLE · ?</text>` : ""}</g>`;
+      }
+      const ky = gelesen.length ? sy(Math.min(19, gelesen.length - 1)) - 12 : 232;
+      return `<h4>Der Mondschacht</h4><p class="gsub">Mit jedem Band fährt der Korb eine Sohle tiefer. ${gelesen.length ? "Tippe auf eine Sohle." : "Noch steht der Korb über Tage."}</p>
+        <svg viewBox="0 0 330 1000" role="img" aria-label="Förderschacht" style="max-width:320px">
+          <defs><radialGradient id="glampe"><stop offset="0" stop-color="rgba(255,214,120,.9)"/><stop offset="1" stop-color="rgba(255,180,60,0)"/></radialGradient></defs>
+          <image href="${BILD.mondschacht}" width="330" height="1000"/>${sohlen}
+          <path d="M165,60 V${ky}" stroke="#c8c0a8" stroke-width="1"/>
+          <g transform="translate(155 ${ky})"><rect width="20" height="24" fill="#2a2620" stroke="#e8d8a8" stroke-width="1.6"/><path d="M0,8 h20 M0,16 h20 M7,0 v24 M13,0 v24" stroke="#8a7e64" stroke-width=".8"/>${gelesen.length ? '<circle cx="10" cy="12" r="9" fill="url(#glampe)"/>' : ""}</g>
+          <text x="165" y="992" text-anchor="middle" fill="#d8c8a0" stroke="#0a0807" stroke-width="3" paint-order="stroke" font-size="10" font-family="Inter, sans-serif" letter-spacing="2">ZECHE MONDHEIDE · GLÜCK AUF</text>
+        </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Erreichte Sohlen: <b>${gelesen.length}</b>` : "Lies den ersten Band, dann fährt der Korb ein."}</div>`;
+    }
     const n = Math.max(r.st.length, gelesen.length + 1), tief = 18, H = 120 + n * 52 + 46, korbY = gelesen.length ? 120 + gelesen.length * 52 - 22 : 92;
     let sohlen = "";
     for (let i = 0; i < n; i++) {

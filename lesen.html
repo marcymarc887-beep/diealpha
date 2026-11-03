@@ -1345,19 +1345,21 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     for (let i = 0; i < 30; i++) alt.push({ x: 108 + R() * 104, w: (R() - .5) * 26, h: 70 + R() * 50, c: ["#2a2630", "#33202a", "#1f2b2a", "#2b2a22", "#26232f"][i % 5], griff: R() < .6 });
     const schirm = (x, w, h, farbe, cls, attr) => {
       const top = 150 - h, gx = x + w;
-      return `<g class="${cls}" ${attr}><path d="M${x - 5},152 Q${x - 7},${top + 40} ${gx},${top + 8} Q${x + 7},${top + 40} ${x + 5},152 Z" fill="${farbe}" stroke="rgba(0,0,0,.5)" stroke-width=".8"/>
+      const B = cls.includes("neu") ? 12 : 5;   // Bildvariante: neue Schirme breit, mit Stofffalten
+      return `<g class="${cls}" ${attr}><path d="M${x - B},152 Q${x - B * 1.5},${top + 40} ${gx},${top + 8} Q${x + B * 1.5},${top + 40} ${x + B},152 Z" fill="${farbe}" stroke="rgba(0,0,0,.5)" stroke-width=".8"/>
+        ${cls.includes("neu") ? `<path d="M${gx},${top + 8} Q${x - B * .5},${top + 44} ${x - B * .4},152 M${gx},${top + 8} Q${x + B * .5},${top + 44} ${x + B * .4},152" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".8"/>` : ""}
         <path d="M${gx},${top + 8} L${gx + w * .05},${top - 6}" stroke="#a89a7a" stroke-width="2"/>
         <path d="M${gx + w * .05},${top - 6} q0,-14 -9,-14 q-8,0 -8,8" fill="none" stroke="${cls.includes("neu") ? "#e8c27a" : "#5a4a3a"}" stroke-width="4" stroke-linecap="round"/></g>`;
     };
     let neu = "", spuren = "";
     gelesen.forEach((s, i) => {
-      const g = s.gimmick || {}, x = 128 + ((i * 37) % 70), w = (i % 2 ? 1 : -1) * (8 + (i * 5) % 12), h = 108 + (i * 11) % 30;
+      const g = s.gimmick || {}, x = 118 + ((i * 37) % 84), w = (i % 2 ? 1 : -1) * (8 + (i * 5) % 12), h = 108 + (i * 11) % 30;
       if (g.verbleib) {   // Schirm steht nicht im Ständer: nur sein Umriss und Glut
-        spuren += `<g data-g="${i}" tabindex="0"><path d="M${x - 5},152 Q${x - 7},${150 - h + 40} ${x + w},${150 - h + 8} Q${x + 7},${150 - h + 40} ${x + 5},152 Z" fill="rgba(255,140,60,.06)" stroke="#e8964a" stroke-width="1.2" stroke-dasharray="3 3"/>
+        spuren += `<g data-g="${i}" tabindex="0"><path d="M${x - 12},152 Q${x - 18},${150 - h + 40} ${x + w},${150 - h + 8} Q${x + 18},${150 - h + 40} ${x + 12},152 Z" fill="rgba(255,140,60,.06)" stroke="#e8964a" stroke-width="1.2" stroke-dasharray="3 3"/>
           ${[0, 1, 2].map(k => `<circle cx="${x + w * .5 + (k - 1) * 4}" cy="${150 - h + 40 + k * 14}" r="1.4" fill="#ffb060"><animate attributeName="opacity" values=".2;1;.2" dur="${1.6 + k * .5}s" repeatCount="indefinite"/></circle>`).join("")}</g>`;
       } else neu += schirm(x, w, h, g.farbe || "#6a2a3a", "neu", `data-g="${i}" tabindex="0"`);
     });
-    const ahnung = naechster ? `<g opacity=".5" data-g="n" tabindex="0"><path d="M${200},152 Q198,70 212,42 Q206,70 210,152 Z" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 4"/><text x="214" y="38" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
+    const ahnung = naechster ? `<g opacity=".5" data-g="n" tabindex="0"><path d="M190,152 Q184,80 212,42 Q220,80 212,152 Z" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 4"/><text x="214" y="38" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
     const BILD = DATA.app.gimmickBilder || {};
     if (BILD.schirmstaender) {   // gemaltes Bild gimmicks/schirmstaender (671×1000): Öffnung des Ständers um (335, 500); Schirme wie oben, nur skaliert
       return `<h4>Veras Schirmständer</h4><p class="gsub">Für jeden gelösten Fall ein Schirm. ${gelesen.length ? "Tippe auf einen Schirm." : "Noch steht nur ihr alter Schirm darin."}</p>
@@ -1621,10 +1623,25 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const buch = `<g transform="translate(60 196)"><rect width="200" height="42" rx="6" fill="#1b140c" stroke="#8a6a2a"/>
           <text x="100" y="12" text-anchor="middle" fill="#b8944a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing="1.5">ZORAS SCHULDBUCH · OFFEN</text>
           <text x="100" y="34" text-anchor="middle" fill="${stand ? "#ff9a7a" : "#e8d9b0"}" font-size="18" font-family="Courier New, monospace" font-weight="700" xml:space="preserve">${esc(ziffern)} Kr</text></g>`;
+    // Stationen auf den gemalten Perlen (vermessen im Bild 1000×671), Reihenfolge = erstes Vorkommen über alle Bände der Reihe
+    const PERLEN = [[76, 236], [123, 226], [142, 223], [210, 223], [250, 229], [287, 236], [312, 244], [339, 253], [380, 269], [430, 292], [456, 307], [500, 332], [540, 354], [579, 375], [620, 394], [681, 418], [733, 437], [776, 449], [824, 458], [871, 463], [923, 460]];
+    const perlen = () => {
+      const alle = []; r.st.forEach(s => ((s.gimmick || {}).route || []).forEach(n => { if (!alle.includes(n)) alle.push(n); }));
+      const idx = n => Math.round(alle.indexOf(n) * (PERLEN.length - 1) / Math.max(alle.length - 1, PERLEN.length - 1)), lage = n => PERLEN[idx(n)];
+      if (!stationen.length) return "";
+      const weit = Math.max(...stationen.map(([n]) => idx(n))), jetzt = stationen[stationen.length - 1][0], [jx, jy] = lage(jetzt), nx = naechster && PERLEN[weit + 1];
+      const anker = jx < 200 ? "start" : jx > 800 ? "end" : "middle";
+      return `<path d="M${PERLEN.slice(0, weit + 1).map(q => q.join(",")).join(" L")}" fill="none" stroke="#e8b44f" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="1 9"/>
+        ${nx ? `<g data-g="n" tabindex="0"><path d="M${PERLEN[weit].join(",")} L${nx.join(",")}" stroke="#b8b2c8" stroke-width="2.4" stroke-dasharray="3 7"/><circle cx="${nx[0]}" cy="${nx[1]}" r="22" fill="transparent" stroke="#b8b2c8" stroke-width="2" stroke-dasharray="4 5"/></g>` : ""}
+        ${Object.entries(orte).map(([n, i]) => { const [x, y] = lage(n); return `<g data-g="${i}:${n}" tabindex="0"><circle cx="${x}" cy="${y}" r="26" fill="url(#gstern)"/><circle cx="${x}" cy="${y}" r="7" fill="#fff0c0"/></g>`; }).join("")}
+        <circle cx="${jx}" cy="${jy}" r="15" fill="none" stroke="#ffd27a" stroke-width="3" pointer-events="none"/>
+        <text x="${jx}" y="${jy + 42}" text-anchor="${anker}" fill="#ffe9b8" stroke="#0c0a18" stroke-width="6" paint-order="stroke" font-size="26" font-family="Inter, sans-serif" font-weight="600" pointer-events="none">${esc(jetzt)}</text>
+        <g transform="translate(${jx - 22} ${jy - 58}) scale(2.7)" pointer-events="none"><path d="M0,6 q8,-8 16,0 q-8,3 -16,0 z" fill="#1a1a22" stroke="#9ad0ff" stroke-width=".8"/><path d="M4,5 l-6,-6 M10,4 l2,-7" stroke="#9ad0ff" stroke-width=".8"/><circle cx="13" cy="5" r=".9" fill="#ffd27a"/></g>`;
+    };
     if (BILD.sternkarte) {   // gemaltes Bild gimmicks/sternkarte (1000×671) als Hintergrund, Route und Schuldbuch wie gehabt (skaliert)
       return `<h4>Die Route der Elster</h4><p class="gsub">Jeder Band ein Stück Weg entlang der Perlenschnur – und Zoras Schuldbuch rechnet mit.</p>
         <svg viewBox="0 0 1000 671" role="img" aria-label="Sternenroute"><defs><radialGradient id="gstern"><stop offset="0" stop-color="rgba(255,220,140,.55)"/><stop offset="1" stop-color="rgba(255,200,100,0)"/></radialGradient></defs>
-          <image href="${BILD.sternkarte}" width="1000" height="671"/><g transform="translate(71 0) scale(2.68)">${route}${sterne}${weiter}${stationen.length ? elster : ""}${buch}</g>
+          <image href="${BILD.sternkarte}" width="1000" height="671"/>${perlen()}<g transform="translate(71 0) scale(2.68)">${buch}</g>
         </svg><div class="ginfo" id="ginfo">${gelesen.length ? (g.schuld_text ? esc(g.schuld_text) : "Tippe auf einen Stern.") : "Noch liegt die Elster im Dock."}</div>`;
     }
     return `<h4>Die Route der Elster</h4><p class="gsub">Jeder Band ein Stück Weg entlang der Perlenschnur – und Zoras Schuldbuch rechnet mit.</p>
@@ -1642,7 +1659,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   function gimKometInfo(r, i) {
     if (i === "n") return "<b>Der nächste Kurs</b><small>Wohin die Elster fliegt, steht noch in keinem Logbuch.</small>";
-    const [b, n] = String(i).split(":"), s = r.st.filter(isDone)[+b], g = s.gimmick || {};
+    const k = String(i).indexOf(":"), b = String(i).slice(0, k), n = String(i).slice(k + 1), s = r.st.filter(isDone)[+b], g = s.gimmick || {};
     return `<b>${esc(n)}</b><small>Station in „${esc(s.title)}“${g.jahr ? " · " + esc(g.jahr) : ""}</small>${g.schuld_text ? `<i>${esc(g.schuld_text)}</i>` : ""}`;
   }
   /* Märchenkrimi: Idas Märchenbuch, eine Seite pro gelöstem Fall mit Siegel; die nächste Seite ist noch versiegelt. Blättern mit ‹ › */

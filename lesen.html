@@ -307,6 +307,21 @@ body.reading .tabbar { display: none; }
 .gate p { color: #d6d1df; margin: 0 0 22px; }
 .gate svg { width: 64px; height: 64px; }
 .empty { color: var(--muted); padding: 30px 0; text-align: center; }
+.tile .neubadge { position: absolute; top: 8px; left: 8px; z-index: 1; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; background: var(--accent2); color: #fff; padding: 3px 7px; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,.5); }
+.nfcov { position: relative; display: block; flex: 0 0 auto; width: 58px; aspect-ratio: 2/3; border-radius: 7px; overflow: hidden; background: var(--card); box-shadow: 0 3px 10px rgba(0,0,0,.4); }
+.nfcov img, .nfcov svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.fqcard.nfd { padding: 14px 16px; }
+.nfdw { margin: 0 0 24px; padding: 14px 0 12px 16px; border: 1px solid rgba(232,180,79,.45); border-radius: 16px; background: var(--card); box-shadow: 0 0 22px rgba(232,180,79,.18); }
+.nfdh { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-right: 16px; margin-bottom: 10px; }
+.nfdh b { font-family: "Cormorant Garamond", serif; font-size: 24px; line-height: 1.1; color: var(--accent); }
+.nfdh span { font-size: 13px; color: var(--muted); }
+.nfdr { display: flex; gap: 12px; overflow-x: auto; padding-right: 16px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.nfdr::-webkit-scrollbar { display: none; }
+.nfdr a { flex: 0 0 84px; width: 84px; color: inherit; text-decoration: none; scroll-snap-align: start; }
+.nfdr .nfcov { width: 84px; }
+.nfdr small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; font-size: 12px; line-height: 1.25; }
+.nfmehr .nfcov { display: flex; align-items: center; justify-content: center; border: 1px dashed rgba(232,180,79,.5); box-shadow: none; }
+.nfmehr i { font: 600 20px Inter, sans-serif; color: var(--accent); }
 .tile .donebadge { position: absolute; top: 8px; left: 8px; z-index: 1; font-size: 10px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; background: var(--accent); color: #1a1206; padding: 3px 7px; border-radius: 6px; }
 .donebox { text-align: center; color: var(--accent); font-size: 14px; font-weight: 600; margin: -4px 0 12px; }
 .dlinks { display: flex; justify-content: center; gap: 18px; margin-top: 12px; font-size: 13px; }
@@ -1231,12 +1246,32 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       (GENRE_KEYS.length ? `<select id="genreSel" aria-label="Genre" class="gsel">${opt(Object.assign({ alle: "Alle Genres" }, GENRES), prefs.genre || "alle")}</select>` : "") + `</div>`;
   }
 
+  /* „Neu“ (seit 03.11.2026): fertiger, für dieses Konto freier Band mit Datum (datiert: ab, sonst seit), noch nicht begonnen, höchstens 30 Tage alt */
+  const neuSeit = st => st.ab || st.seit || "";
+  const isNeu = st => {
+    const seit = neuSeit(st);
+    if (!seit || st.status !== "fertig" || progress[st.id] || isArch(st)) return false;
+    const heute = isoTag(HEUTE);
+    return seit <= heute && Date.parse(heute + "T00:00:00Z") - Date.parse(seit + "T00:00:00Z") < 30 * 864e5;
+  };
+  function neuKarte() {
+    const neu = STORIES.filter(isNeu).sort((a, b) => neuSeit(b).localeCompare(neuSeit(a)) || (b.nr || 0) - (a.nr || 0));
+    if (!neu.length) return "";
+    if (neu.length === 1) {
+      const s = neu[0];
+      return `<a class="fqcard nfd" href="#/story/${s.id}"><span class="nfcov">${coverArt(s)}</span><span><b>Neu für dich</b><span>${esc(s.title)}</span></span><span class="fqgo">Lesen ›</span></a>`;
+    }
+    const MAX = 10, rest = neu.length - MAX;
+    return `<div class="nfdw"><div class="nfdh"><b>Neu für dich</b><span>${neu.length} Geschichten</span></div><div class="nfdr">
+      ${neu.slice(0, MAX).map(s => `<a href="#/story/${s.id}"><span class="nfcov">${coverArt(s)}</span><small>${esc(s.title)}</small></a>`).join("")}
+      ${rest > 0 ? `<a class="nfmehr" href="#/bibliothek"><span class="nfcov"><i>+${rest}</i></span><small>in der Bibliothek</small></a>` : ""}</div></div>`;
+  }
   function tile(st, cls, plain) {
     const soon = st.status === "demnaechst";
     const p = pct(st);
     const tag = plain ? "div" : "a";
     return `<${tag} class="tile ${soon ? "soon" : ""} ${cls || ""}"${plain ? "" : ` href="#/story/${st.id}"`}>
-      <div class="cover ${st.cover ? "img" : ""}">${coverArt(st)}<div class="ct">${esc(st.title)}</div>${soon ? '<span class="lock">Demnächst</span>' : ""}${isDone(st) ? '<span class="donebadge">Gelesen</span>' : ""}</div>
+      <div class="cover ${st.cover ? "img" : ""}">${coverArt(st)}<div class="ct">${esc(st.title)}</div>${soon ? '<span class="lock">Demnächst</span>' : ""}${isDone(st) ? '<span class="donebadge">Gelesen</span>' : ""}${isNeu(st) ? '<span class="neubadge">Neu</span>' : ""}</div>
       <div class="tm">${esc(st.title)}</div>
       <div class="ts">${soon ? "In Arbeit" : (st.chapters.length + " Kapitel")}</div>
       ${p && (!isDone(st) || isRe(st)) ? `<div class="pbar"><i style="width:${p}%"></i></div>` : ""}
@@ -1871,6 +1906,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     let h = header() + '<div class="wrap">';
     const anl = anlassHeute(DATA.app.anlaesse, HEUTE), introImg = (anl && anl.img) || DATA.app.introImage;
     if (HEUTE.sim) h += `<div class="gstest"><b>Datum simuliert:</b> ${HEUTE.d}.${HEUTE.m}.${HEUTE.y} → ${anl ? esc(anl.id) : "normales Titelbild"}${effektArt() ? " · Effekt: " + effektArt() : ""}</div>`;
+    h += neuKarte();
     if (introImg || DATA.app.intro) {
       h += `<div class="intro">${introImg ? `<a href="#/bibliothek" class="introimg"><img src="${introImg}" alt="Wolfsmond"></a>` : ""}
         ${DATA.app.introTitle ? `<h2>${esc(DATA.app.introTitle)}</h2>` : ""}${(DATA.app.intro || "").split(/\n\s*\n/).map(t => `<p>${esc(t)}</p>`).join("")}</div>`;

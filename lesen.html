@@ -1246,11 +1246,13 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       (GENRE_KEYS.length ? `<select id="genreSel" aria-label="Genre" class="gsel">${opt(Object.assign({ alle: "Alle Genres" }, GENRES), prefs.genre || "alle")}</select>` : "") + `</div>`;
   }
 
-  /* „Neu“ (seit 03.11.2026): fertiger, für dieses Konto freier Band mit Datum (datiert: ab, sonst seit), noch nicht begonnen, höchstens 30 Tage alt */
+  /* „Neu“ (seit 03.11.2026, Auswahl: app.neu): fertiger, für dieses Konto freier Band mit Datum (datiert: ab, sonst seit), noch nicht begonnen, höchstens 30 Tage alt */
   const neuSeit = st => st.ab || st.seit || "";
+  const NEU_REIHEN = (DATA.app.neu || {}).reihen;     // app.neu.reihen: nur Bände dieser Reihen gelten als neu; ohne Schlüssel alle
   const isNeu = st => {
     const seit = neuSeit(st);
     if (!seit || st.status !== "fertig" || progress[st.id] || isArch(st)) return false;
+    if (NEU_REIHEN && !NEU_REIHEN.includes((st.reihe || {}).id)) return false;
     const heute = isoTag(HEUTE);
     return seit <= heute && Date.parse(heute + "T00:00:00Z") - Date.parse(seit + "T00:00:00Z") < 30 * 864e5;
   };

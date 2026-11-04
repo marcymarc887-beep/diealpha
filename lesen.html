@@ -1331,12 +1331,14 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* ---------- Reihen-Gimmicks (seit 27.10.2026, Markus): wachsen mit dem Lesestand. Gelesene Bände sichtbar,
      der nächste nur angedeutet, nichts aus ungelesenen Bänden. Daten je Band: stories.json → "gimmick". ---------- */
+  const TEIL = name => (DATA.app.gimTeile || {})[name];   // freigestellte Bilder aus gimmicks/{stempel,siegel,stuecke}
   const GIMMICKS = { asmussen: gimSchirme, grenzgaenger: gimPass, mondschacht: gimSchacht, "die-erzaehlten": gimNebel, "vergessene-fahrt": gimArche, kometenblut: gimKomet, "und-wenn-sie-nicht-gestorben-sind": gimMaerchen, "asche-und-zitronen": gimAsche, "tausend-tore": gimFaecher };
   const GIM_INFO = { asmussen: gimSchirmInfo, grenzgaenger: gimPassInfo, mondschacht: gimSchachtInfo, "die-erzaehlten": gimNebelInfo, "vergessene-fahrt": gimArcheInfo, kometenblut: gimKometInfo, "asche-und-zitronen": gimAscheInfo, "tausend-tore": gimFaecherInfo };
   function gimmickHTML(r) {
     const f = GIMMICKS[r.id];
     if (!f) return "";
     const gelesen = r.st.filter(isDone), naechster = r.st.find(s => !isDone(s));
+    gimSeite = null;   // Blätterstand gilt je Besuch der Reihenseite
     return `<div class="gim" data-gim="${r.id}">${f(r, gelesen, naechster)}</div>`;
   }
   /* Asmussen: Veras gusseiserner Schirmständer in Reiherform; die alten 30 Schirme im Halbdunkel, je gelöstem Fall ein leuchtender */
@@ -1412,6 +1414,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return `<b>Fall ${s.reihe.teil}: ${esc(g.fall || s.title)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}${g.verbleib && (DATA.app.schirmBilder || {})[String(g.schirmbild || s.reihe.teil).padStart(2, "0")] ? `<img src="${DATA.app.schirmBilder[String(g.schirmbild || s.reihe.teil).padStart(2, "0")]}" alt="" style="float:right;height:72px;margin:0 0 4px 10px">` : ""}<small>${esc(g.schirm || "Ein neuer Schirm")}${g.verbleib ? " – " + esc(g.verbleib) : ""}</small>${g.heft ? `<i>Aus dem Heft der Todestage: „${esc(g.heft)}“</i>` : ""}`;
   }
   /* Grenzgänger: Reisepass des Seerats, je gelesenem Band ein Stempel (Land, Ort, Jahr); Tippen auf den Pass klappt ihn auf */
+  const STEMPEL_MASSE = {"01":[184,185,0.561,0.197,"#00182c"],"02":[184,186,0.538,0.188,"#38000c"],"03":[239,167,0.6,0.219,"#621c00"],"04":[210,186,0.556,0.194,"#002c07"],"05":[210,164,0.605,0.223,"#5b0012"],"06":[200,177,0.545,0.209,"#00401f"],"07":[234,167,0.609,0.219,"#764800"],"08":[243,156,0.522,0.173,"#00384d"],"09":[219,165,0.566,0.299,"#005e63"],"10":[209,169,0.654,0.237,"#000b14"],"11":[200,176,0.599,0.21,"#001033"],"12":[234,164,0.608,0.223,"#691900"],"13":[223,164,0.573,0.22,"#002055"],"14":[227,152,0.553,0.237,"#5f0000"],"15":[182,182,0.606,0.228,"#15001d"],"16":[200,174,0.58,0.207,"#003e44"],"17":[217,165,0.508,0.27,"#3e0003"],"18":[219,175,0.559,0.209,"#3c0012"],"19":[220,177,0.629,0.206,"#792c00"],"20":[217,160,0.627,0.228,"#312600"]};   // [Breite, Höhe, Mitte des leeren Bandes, Bandhöhe (Anteile der Höhe), Tintenfarbe]
   function gimPass(r, gelesen, naechster) {
     const offen = !!prefs.passOffen, ink = ["#2f6f8f", "#8f2f3a", "#3a7a4a", "#6a4a9a", "#9a6a2a", "#2a5a7a"];
     const stempel = gelesen.map((s, i) => {
@@ -1441,19 +1444,27 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         <text x="160" y="${hoehe / 2 + 44}" text-anchor="middle" fill="#d8b45a" font-size="15" font-family="Cormorant Garamond, serif" letter-spacing="4" font-weight="700">GRENZGÄNGER</text>
         <text x="160" y="${hoehe / 2 + 60}" text-anchor="middle" fill="#b8944a" font-size="7.5" font-family="Inter, sans-serif" letter-spacing="2">PASS DES SEERATS</text></g>`;
     const BILD = DATA.app.gimmickBilder || {};
-    if (BILD.pass) {   // gemaltes Bild gimmicks/pass (1000×671): Stempel auf der rechten Seite (x 520–790, y 290–560), 3 Spalten
-      const lage = i => [565 + (i % 3) * 90, 330 + Math.floor(i / 3) * 62], sp = stempel.replace(/translate\((\d+) (\d+)\) rotate\((-?\d+)\)/g, (m0, x, y, rot) => {
-        const i = (+x - 196) / 62 + ((+y - 52) / 60) * 2, [nx, ny] = lage(i); return `translate(${nx} ${ny}) rotate(${rot}) scale(1.15)`; });
-      const [lx, ly] = lage(n), leer2 = naechster ? `<g data-g="n" tabindex="0" transform="translate(${lx} ${ly})" opacity=".55"><circle r="28" fill="none" stroke="#6a6250" stroke-width="2" stroke-dasharray="4 4"/><text y="7" text-anchor="middle" fill="#6a6250" font-size="20" font-family="Cormorant Garamond, serif">?</text></g>` : "";
-      const deckel2 = `<g class="pdeckel" style="transform:${offen ? "scaleX(0)" : "none"}"><rect x="186" y="256" width="630" height="340" rx="14" fill="#4a1420" stroke="#2a0a10" stroke-width="3"/>
-          <rect x="200" y="270" width="602" height="312" rx="8" fill="none" stroke="#c9a24a" stroke-width="1.5" opacity=".6"/>
-          <text x="501" y="350" text-anchor="middle" fill="#d8b45a" font-size="22" font-family="Inter, sans-serif" letter-spacing="6">EUROPA</text>
-          <g transform="translate(501 410) scale(2)" fill="none" stroke="#d8b45a" stroke-width="1.6"><circle r="16"/><path d="M-10,4 q5,-6 10,0 t10,0"/><path d="M-7,-5 l4,-7 l4,5 l4,-8 l4,10"/></g>
-          <text x="501" y="500" text-anchor="middle" fill="#d8b45a" font-size="34" font-family="Cormorant Garamond, serif" letter-spacing="8" font-weight="700">GRENZGÄNGER</text>
-          <text x="501" y="535" text-anchor="middle" fill="#b8944a" font-size="15" font-family="Inter, sans-serif" letter-spacing="4">PASS DES SEERATS</text></g>`;
-      return `<h4>Der Pass der Grenzgängerin</h4><p class="gsub">Ein Stempel für jedes Land, das du mit ihnen bereist hast. ${offen ? "Tippe auf einen Stempel." : "Tippe auf den Pass, um ihn aufzuschlagen."}</p>
-        <svg class="pass" viewBox="0 0 1000 671" role="img" aria-label="Reisepass" data-pass="1"><image href="${BILD.pass}" width="1000" height="671"/>${sp}${leer2}${deckel2}</svg>
-        <div class="ginfo" id="ginfo">${n ? `Stempel im Pass: <b>${n}</b> von ${r.st.length}` : "Noch leer – der erste Stempel kommt mit dem ersten Band."}</div>`;
+    if (BILD.pass) {   // gemaltes Bild gimmicks/pass (1000×671); offen auf das Buch gezoomt, je Doppelseite 4 große Stempel, sonst blättern
+      const PRO = 4, LAGE = [[325, 365, -5], [395, 490, 4], [610, 360, 5], [690, 490, -4]], BR = 185;
+      const slots = gelesen.length + (naechster ? 1 : 0), seiten = Math.max(1, Math.ceil(slots / PRO));
+      if (gimSeite == null || gimSeite >= seiten) gimSeite = Math.max(0, Math.ceil(Math.max(1, gelesen.length) / PRO) - 1);
+      const sv = gimSeite, von = sv * PRO;
+      const marke = gelesen.slice(von, von + PRO).map((s, k) => { const g = s.gimmick || {}, nr = String(g.stempel || s.reihe.teil).padStart(2, "0"), m = STEMPEL_MASSE[nr], src = TEIL("stempel/" + nr), [x, y, rot] = LAGE[k], i = von + k;
+        if (!m || !src) return "";
+        const sk = BR / Math.max(m[0], m[1]), bw = m[0] * sk, bh = m[1] * sk, by = (m[2] - .5) * bh, bandH = m[3] * bh, land = (g.land || "Band " + s.reihe.teil).toUpperCase(), fs = Math.min(bandH * .46, bw * .74 / (land.length * .62));
+        return `<g data-g="${i}" tabindex="0" transform="translate(${x} ${y}) rotate(${rot})"><image href="${src}" x="${-bw / 2}" y="${-bh / 2}" width="${bw}" height="${bh}"/>
+          <text y="${by - bandH * .04}" text-anchor="middle" fill="${m[4]}" stroke="#f3ead2" stroke-width="3.5" paint-order="stroke" font-size="${fs.toFixed(1)}" font-weight="700" font-family="Inter, sans-serif">${esc(land)}</text>
+          <text y="${by + bandH * .37}" text-anchor="middle" fill="${m[4]}" stroke="#f3ead2" stroke-width="3" paint-order="stroke" font-size="${(bandH * .36).toFixed(1)}" font-weight="700" font-family="Courier New, monospace">${esc(g.jahr || "")}</text></g>`; }).join("");
+      const platz = naechster && gelesen.length >= von && gelesen.length < von + PRO ? (() => { const [x, y] = LAGE[gelesen.length - von]; return `<g data-g="n" tabindex="0" transform="translate(${x} ${y})" opacity=".55"><circle r="62" fill="rgba(255,255,255,.01)" stroke="#6a6250" stroke-width="2.5" stroke-dasharray="6 6"/><text y="14" text-anchor="middle" fill="#5a5240" font-size="40" font-family="Cormorant Garamond, serif">?</text></g>`; })() : "";
+      const knopf = (x, d, z) => `<g data-gb="${d}" tabindex="0"><circle cx="${x}" cy="572" r="22" fill="#2a1a10"/><text x="${x}" y="582" text-anchor="middle" fill="#e8c27a" font-size="30">${z}</text></g>`;
+      const deckel2 = `<g class="pdeckel" style="transform:none"><image href="${TEIL("stuecke/passdeckel") || ""}" x="270" y="250" width="460" height="351"/>
+          <text x="500" y="312" text-anchor="middle" fill="#e8c878" font-size="16" font-family="Inter, sans-serif" letter-spacing="6">EUROPA</text>
+          <text x="500" y="356" text-anchor="middle" fill="#e8c878" font-size="38" font-family="Cormorant Garamond, serif" letter-spacing="6" font-weight="700">GRENZGÄNGER</text>
+          <text x="500" y="384" text-anchor="middle" fill="#d0ae62" font-size="13" font-family="Inter, sans-serif" letter-spacing="4">PASS DES SEERATS</text></g>`;
+      return `<h4>Der Pass der Grenzgängerin</h4><p class="gsub">Ein Stempel für jedes Land, das du mit ihnen bereist hast. ${offen ? `Tippe auf einen Stempel.${seiten > 1 ? " Blättere mit ‹ ›." : ""}` : "Tippe auf den Pass, um ihn aufzuschlagen."}</p>
+        <svg class="pass" viewBox="${offen ? "190 248 620 350" : "0 0 1000 671"}" role="img" aria-label="Reisepass" data-pass="1"><image href="${BILD.pass}" width="1000" height="671"/>
+          ${offen ? marke + platz + (sv > 0 ? knopf(215, -1, "‹") : "") + (sv < seiten - 1 ? knopf(785, 1, "›") : "") : deckel2}</svg>
+        <div class="ginfo" id="ginfo">${n ? `Stempel im Pass: <b>${n}</b> von ${r.st.length}${seiten > 1 ? ` · Doppelseite ${sv + 1} von ${seiten}` : ""}` : "Noch leer – der erste Stempel kommt mit dem ersten Band."}</div>`;
     }
     return `<h4>Der Pass der Grenzgängerin</h4><p class="gsub">Ein Stempel für jedes Land, das du mit ihnen bereist hast. ${offen ? "Tippe auf einen Stempel." : "Tippe auf den Pass, um ihn aufzuschlagen."}</p>
       <svg class="pass" viewBox="0 0 320 ${hoehe}" role="img" aria-label="Reisepass" data-pass="1">${innen}${deckel}</svg>
@@ -1483,7 +1494,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
           <defs><radialGradient id="glampe"><stop offset="0" stop-color="rgba(255,214,120,.9)"/><stop offset="1" stop-color="rgba(255,180,60,0)"/></radialGradient></defs>
           <image href="${BILD.mondschacht}" width="330" height="1000"/>${sohlen}
           <path d="M165,60 V${ky}" stroke="#c8c0a8" stroke-width="1"/>
-          <g transform="translate(155 ${ky})"><rect width="20" height="24" fill="#2a2620" stroke="#e8d8a8" stroke-width="1.6"/><path d="M0,8 h20 M0,16 h20 M7,0 v24 M13,0 v24" stroke="#8a7e64" stroke-width=".8"/>${gelesen.length ? '<circle cx="10" cy="12" r="9" fill="url(#glampe)"/>' : ""}</g>
+          ${TEIL("stuecke/foerderkorb") ? `<image href="${TEIL("stuecke/foerderkorb")}" x="151" y="${ky}" width="28" height="52"/>` : `<g transform="translate(155 ${ky})"><rect width="20" height="24" fill="#2a2620" stroke="#e8d8a8" stroke-width="1.6"/><path d="M0,8 h20 M0,16 h20 M7,0 v24 M13,0 v24" stroke="#8a7e64" stroke-width=".8"/></g>`}
           <text x="165" y="992" text-anchor="middle" fill="#d8c8a0" stroke="#0a0807" stroke-width="3" paint-order="stroke" font-size="10" font-family="Inter, sans-serif" letter-spacing="2">ZECHE MONDHEIDE · GLÜCK AUF</text>
         </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Erreichte Sohlen: <b>${gelesen.length}</b>` : "Lies den ersten Band, dann fährt der Korb ein."}</div>`;
     }
@@ -1526,6 +1537,29 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   }
   /* Die Erzählten: Zeitstrahl im Nebel; gelesene Bände klar, der nächste halb im Nebel, Rückblenden als kleine Lichtpunkte */
   function gimNebel(r, gelesen, naechster) {
+    const BILDER = DATA.app.gimmickBilder || {};
+    if (BILDER.erzaehlten) {   // gemaltes Bild gimmicks/erzaehlten (1792×592): Strahl im dunklen Streifen (y≈290), waagerecht scrollbar, Nebel verschleiert Ungelesenes
+      const W = 1792, m = r.st.length, x = i => m > 1 ? 90 + i * (W - 180) / (m - 1) : W / 2, Y = 288, klar = gelesen.length >= m ? W : gelesen.length ? x(gelesen.length - 1) + 90 : 0;
+      const punkte = r.st.map((s, i) => { const an = i < gelesen.length, nx = !an && s === naechster, g = s.gimmick || {};
+        if (!an && !nx) return "";
+        const halo = 'stroke="#0a0a10" stroke-width="5" paint-order="stroke"';
+        return `<g data-g="${an ? i : "n"}" tabindex="0"><circle cx="${x(i)}" cy="${Y}" r="42" fill="${an ? "url(#gfeuer)" : "transparent"}"/><circle cx="${x(i)}" cy="${Y}" r="${an ? 12 : 10}" fill="${an ? "#ffd27a" : "#8f8a9c"}" stroke="${an ? "#fff2c8" : "none"}" stroke-width="3"/>
+          <text x="${x(i)}" y="${Y - 22}" text-anchor="middle" fill="${an ? "#ffe9b8" : "#c8c2d4"}" ${halo} font-size="26" font-family="Cormorant Garamond, serif" font-weight="700">${an ? esc(g.zeit || "Band " + (i + 1)) : "?"}</text>
+          ${an && g.epoche ? `<text x="${x(i)}" y="${Y + 36}" text-anchor="middle" fill="#d8ccb0" ${halo} font-size="15" font-family="Inter, sans-serif">${esc(g.epoche.split(",")[0])}</text>` : ""}
+          ${an ? (g.rueckblenden || []).map((rb, k) => `<g data-g="${i}.${k}" tabindex="0"><circle cx="${x(i) - 60 + k * 30}" cy="${Y - 58 - (k % 2) * 16}" r="16" fill="transparent"/><circle cx="${x(i) - 60 + k * 30}" cy="${Y - 58 - (k % 2) * 16}" r="6" fill="#cfe4ff" pointer-events="none"><animate attributeName="opacity" values=".4;1;.4" dur="${2 + k * .4}s" repeatCount="indefinite"/></circle></g>`).join("") : ""}</g>`; }).join("");
+      const nebel = klar < W ? Array.from({ length: 9 }, (_, k) => { const cx = klar + 80 + k * ((W - klar) / 8); return `<ellipse cx="${cx}" cy="${120 + (k % 3) * 170}" rx="${190 + (k % 4) * 44}" ry="${90 + (k % 3) * 26}" fill="#c9c4d8" opacity="${.08 + (k % 3) * .03}" filter="url(#gweich)"><animate attributeName="cx" values="${cx};${cx + 40};${cx}" dur="${9 + k}s" repeatCount="indefinite"/></ellipse>`; }).join("") : "";
+      const start = Math.max(0, klar / W - .0), ende = Math.min(1, (klar + 150) / W);
+      return `<h4>Was man von ihnen erzählt</h4><p class="gsub">Der Nebel über der Zeit lichtet sich mit jedem Band. ${gelesen.length ? "Wische und tippe auf einen Punkt." : ""}</p>
+        <div class="gscroll" data-frac="${(klar / W).toFixed(3)}" style="overflow-x:auto;border-radius:10px"><svg viewBox="0 0 ${W} 592" style="width:1100px;max-width:none;margin:0" role="img" aria-label="Zeitstrahl">
+          <defs><radialGradient id="gfeuer"><stop offset="0" stop-color="rgba(255,190,90,.6)"/><stop offset="1" stop-color="rgba(255,150,60,0)"/></radialGradient>
+            <filter id="gweich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="24"/></filter>
+            <linearGradient id="gnebel" x1="0" x2="1"><stop offset="${start.toFixed(3)}" stop-color="#17151f" stop-opacity="0"/><stop offset="${ende.toFixed(3)}" stop-color="#17151f" stop-opacity=".95"/><stop offset="1" stop-color="#17151f" stop-opacity=".98"/></linearGradient></defs>
+          <image href="${BILDER.erzaehlten}" width="${W}" height="592"/>
+          <path d="M20,${Y} H${klar}" stroke="#e8b44f" stroke-width="4"/>
+          ${klar < W ? `<rect width="${W}" height="592" fill="url(#gnebel)" pointer-events="none"/><g pointer-events="none">${nebel}</g>` : ""}
+          ${punkte}
+        </svg></div><div class="ginfo" id="ginfo">${gelesen.length ? `Erzählt: <b>${gelesen.length}</b> von ${r.st.length} Zeiten` : "Noch liegt alles im Nebel."}</div>`;
+    }
     const n = Math.max(r.st.length, gelesen.length + 1), W = Math.max(320, 70 + n * 90), x = i => 40 + i * 90, klar = gelesen.length ? x(gelesen.length - 1) + 45 : 20;
     let punkte = "";
     r.st.slice(0, n).forEach((s, i) => {
@@ -1573,8 +1607,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const achse = "achse" in bekannt ? `<g data-g="${bekannt.achse}:achse" tabindex="0"><rect x="302" y="140" width="60" height="660" rx="10" fill="rgba(127,216,200,.12)" stroke="#7fd8c8" stroke-width="3" stroke-dasharray="4 8"/></g>` : "";
       const huelle = "huelle" in bekannt ? `<g data-g="${bekannt.huelle}:huelle" tabindex="0"><ellipse cx="335" cy="505" rx="250" ry="478" fill="none" stroke="#7fd8c8" stroke-width="4" stroke-dasharray="14 8" opacity=".8"/>
           <circle cx="532" cy="152" r="34" fill="rgba(127,216,200,.15)" stroke="#7fd8c8" stroke-width="3"/></g>` : "";
-      const planet = "lichtung" in bekannt ? `<g data-g="${bekannt.lichtung}:lichtung" tabindex="0"><circle cx="92" cy="96" r="58" fill="#3a2a22" stroke="#f0a04a" stroke-width="3"/>
-          <ellipse cx="92" cy="92" rx="18" ry="10" fill="#4a8a4a" stroke="#e8f4d0" stroke-width="1.5"/><text x="92" y="176" text-anchor="middle" fill="#f4c890" stroke="#0c0b12" stroke-width="4" paint-order="stroke" font-size="16" font-family="Inter, sans-serif" letter-spacing="2">LICHTUNG</text></g>`
+      const planet = "lichtung" in bekannt ? `<g data-g="${bekannt.lichtung}:lichtung" tabindex="0">${TEIL("stuecke/lichtung") ? `<image href="${TEIL("stuecke/lichtung")}" x="22" y="26" width="140" height="140"/>` : `<circle cx="92" cy="96" r="58" fill="#3a2a22" stroke="#f0a04a" stroke-width="3"/>
+          <ellipse cx="92" cy="92" rx="18" ry="10" fill="#4a8a4a" stroke="#e8f4d0" stroke-width="1.5"/>`}<text x="92" y="176" text-anchor="middle" fill="#f4c890" stroke="#0c0b12" stroke-width="4" paint-order="stroke" font-size="16" font-family="Inter, sans-serif" letter-spacing="2">LICHTUNG</text></g>`
         : `<g opacity=".7"><circle cx="92" cy="96" r="50" fill="none" stroke="#6a6680" stroke-width="2" stroke-dasharray="6 8"/><text x="92" y="108" text-anchor="middle" fill="#8a86a0" font-size="34" font-family="Cormorant Garamond, serif">?</text></g>`;
       return `<h4>Der Deckplan der Arche</h4><p class="gsub">Mit jedem Band lernst du ein Deck kennen. ${gelesen.length ? "Tippe auf ein Deck." : "Noch ist das Schiff dunkel."}</p>
         <svg viewBox="0 0 671 1000" role="img" aria-label="Deckplan"><image href="${BILD.arche}" width="671" height="1000"/>${decks}${achse}${huelle}${planet}</svg>
@@ -1651,7 +1685,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
         ${Object.entries(orte).map(([n, i]) => { const [x, y] = lage(n); return `<g data-g="${i}:${n}" tabindex="0"><circle cx="${x}" cy="${y}" r="26" fill="url(#gstern)"/><circle cx="${x}" cy="${y}" r="7" fill="#fff0c0"/></g>`; }).join("")}
         <circle cx="${jx}" cy="${jy}" r="15" fill="none" stroke="#ffd27a" stroke-width="3" pointer-events="none"/>
         <text x="${jx}" y="${jy + 42}" text-anchor="${anker}" fill="#ffe9b8" stroke="#0c0a18" stroke-width="6" paint-order="stroke" font-size="26" font-family="Inter, sans-serif" font-weight="600" pointer-events="none">${esc(jetzt)}</text>
-        <g transform="translate(${jx - 22} ${jy - 58}) scale(2.7)" pointer-events="none"><path d="M0,6 q8,-8 16,0 q-8,3 -16,0 z" fill="#1a1a22" stroke="#9ad0ff" stroke-width=".8"/><path d="M4,5 l-6,-6 M10,4 l2,-7" stroke="#9ad0ff" stroke-width=".8"/><circle cx="13" cy="5" r=".9" fill="#ffd27a"/></g>`;
+        ${TEIL("stuecke/elster") ? `<image href="${TEIL("stuecke/elster")}" x="${jx - 95}" y="${jy - 102}" width="190" height="88"${stationen.length > 1 && idx(stationen[stationen.length - 2][0]) > idx(jetzt) ? ` transform="translate(${2 * jx} 0) scale(-1 1)"` : ""} pointer-events="none"/>` : `<g transform="translate(${jx - 22} ${jy - 58}) scale(2.7)" pointer-events="none"><path d="M0,6 q8,-8 16,0 q-8,3 -16,0 z" fill="#1a1a22" stroke="#9ad0ff" stroke-width=".8"/><path d="M4,5 l-6,-6 M10,4 l2,-7" stroke="#9ad0ff" stroke-width=".8"/><circle cx="13" cy="5" r=".9" fill="#ffd27a"/></g>`}`;
     };
     if (BILD.sternkarte) {   // gemaltes Bild gimmicks/sternkarte (1000×671) als Hintergrund, Route und Schuldbuch wie gehabt (skaliert)
       return `<h4>Die Route der Elster</h4><p class="gsub">Jeder Band ein Stück Weg entlang der Perlenschnur – und Zoras Schuldbuch rechnet mit.</p>
@@ -1695,17 +1729,18 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const i = gimSeite, s = gelesen[i], zu = !s, g = (s && s.gimmick) || {};
     const BILD = DATA.app.gimmickBilder || {};
     if (BILD.maerchenbuch) {   // gemaltes Bild gimmicks/maerchenbuch (1000×671): linke Seite innen x 200–450, rechter Rahmen x 550–830, Wachssiegel bei (855, 410)
-      const sg = (gebrochen) => `<g transform="translate(855 410) scale(2.7)"><path d="M0,-17 C9,-18 17,-10 17,0 C18,9 9,17 0,17 C-10,18 -17,9 -17,0 C-18,-10 -9,-17 0,-17 Z" fill="#8f1d24"/><circle r="12" fill="#a8262e"/>${SIEGEL[g.siegel || ""] || SIEGEL[""]}${gebrochen ? '<path d="M-4,-17 l3,9 -4,6 4,8 -2,11" stroke="#3a0a0e" stroke-width="1.2" fill="none"/>' : ""}</g>`;
+      const sg = (gebrochen) => { const bild = TEIL(`siegel/${zu ? "stern" : g.siegel || "stern"}_${gebrochen ? "gebrochen" : "ganz"}`); return bild ? `<image href="${bild}" x="787" y="342" width="136" height="136"/>` : sgAlt(gebrochen); };
+      const sgAlt = (gebrochen) => `<g transform="translate(855 410) scale(2.7)"><path d="M0,-17 C9,-18 17,-10 17,0 C18,9 9,17 0,17 C-10,18 -17,9 -17,0 C-18,-10 -9,-17 0,-17 Z" fill="#8f1d24"/><circle r="12" fill="#a8262e"/>${SIEGEL[g.siegel || ""] || SIEGEL[""]}${gebrochen ? '<path d="M-4,-17 l3,9 -4,6 4,8 -2,11" stroke="#3a0a0e" stroke-width="1.2" fill="none"/>' : ""}</g>`;
       const T = (x, y, s, fs, fill, extra = "") => `<text x="${x}" y="${y}" text-anchor="middle" fill="${fill}" font-size="${fs}" ${extra}>${s}</text>`, CG = 'font-family="Cormorant Garamond, serif"', IN = 'font-family="Inter, sans-serif"';
       const titel = zu ? "" : g.maerchen || s.title, fall = zu ? "" : g.fall || s.title;
       const links = zu ? T(325, 290, "Diese Seite", 26, "#7a6a4a", CG + ' font-style="italic"') + T(325, 324, "ist noch nicht geschrieben.", 26, "#7a6a4a", CG + ' font-style="italic"')
-        : `<rect x="290" y="150" width="70" height="70" fill="#8f1d24"/>${T(325, 206, esc(titel.charAt(0)), 60, "#f3d27a", CG + ' font-weight="700"')}
+        : `${TEIL("stuecke/initialrahmen") ? `<image href="${TEIL("stuecke/initialrahmen")}" x="283" y="143" width="84" height="84"/>` : '<rect x="290" y="150" width="70" height="70" fill="#8f1d24"/>'}${T(325, 206, esc(titel.charAt(0)), 60, "#f3d27a", CG + ' font-weight="700"')}
           ${T(325, 262, esc(titel), Math.min(34, Math.round(560 / Math.max(1, titel.length))), "#3a2a14", CG + ' font-weight="700"')}${T(325, 292, "MÄR · " + esc((g.jahr || "").toUpperCase()), 15, "#7a5a2a", IN + ' letter-spacing="3"')}
           ${[0, 1, 2, 3, 4].map(k => `<path d="M225,${325 + k * 26} H${k === 4 ? 340 : 425}" stroke="#b8a888" stroke-width="2.4" opacity=".5"/>`).join("")}`;
       const rechts = zu ? sg(false) + T(690, 260, "VERSIEGELT", 22, "#7a6a4a", IN + ' letter-spacing="4"')
         : `${T(690, 170, "DER FALL", 18, "#7a5a2a", IN + ' letter-spacing="4"')}${T(690, 222, esc(fall), Math.min(42, Math.round(620 / Math.max(1, fall.length))), "#2a1a0a", CG + ' font-weight="700"')}
           ${T(690, 262, esc(g.ort || ""), Math.min(20, Math.round(470 / Math.max(1, (g.ort || "").length))), "#5a4a2a", IN)}${T(690, 330, "GELÖST · " + esc(s.reihe.teil + ". FALL"), 17, "#7a5a2a", IN + ' letter-spacing="3"')}${sg(true)}`;
-      const knopf = (x, y, d, z) => `<g data-gb="${d}" tabindex="0"><circle cx="${x}" cy="${y}" r="24" fill="#2a1a10" opacity=".9"/><text x="${x}" y="${y + 10}" text-anchor="middle" fill="#e8c27a" font-size="32">${z}</text></g>`;
+      const knopf = (x, y, d, z) => { const b = TEIL(d < 0 ? "stuecke/blaetter_links" : "stuecke/blaetter_rechts"); return `<g data-gb="${d}" tabindex="0">${b ? `<image href="${b}" x="${x - 43}" y="${y - 39}" width="86" height="79"/>` : `<circle cx="${x}" cy="${y}" r="24" fill="#2a1a10" opacity=".9"/><text x="${x}" y="${y + 10}" text-anchor="middle" fill="#e8c27a" font-size="32">${z}</text>`}</g>`; };
       return `<h4>Idas Märchenbuch</h4><p class="gsub">Eine Seite für jeden gelösten Fall, mit rotem Wachs gesiegelt. ${seiten > 1 ? "Blättere mit ‹ ›." : ""}</p>
         <svg viewBox="0 0 1000 671" role="img" aria-label="Märchenbuch"><image href="${BILD.maerchenbuch}" width="1000" height="671"/>
           ${links}${rechts}${i > 0 ? knopf(225, 525, -1, "‹") : ""}${i < seiten - 1 ? knopf(905, 480, 1, "›") : ""}
@@ -1880,6 +1915,8 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     const box = document.querySelector(".gim");
     if (!box) return;
     const r = REIHEN.find(x => x.id === box.dataset.gim), info = box.querySelector("#ginfo");
+    const sc = box.querySelector(".gscroll");
+    if (sc) sc.scrollLeft = Math.max(0, sc.scrollWidth * +sc.dataset.frac - sc.clientWidth + 90);   // zeigt die Grenze zwischen Erzähltem und Nebel
     box.onclick = e => {
       const p = box.querySelector("[data-pass]");
       const bl = e.target.closest("[data-gb]");
@@ -1887,7 +1924,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
       const sw = e.target.closest(".azs:not(.fix)");
       if (sw) { sw.classList.add("auf"); clearTimeout(sw._t); sw._t = setTimeout(() => sw.classList.remove("auf"), 2500); return; }
       const t = e.target.closest("[data-g]");
-      if (p && !prefs.passOffen) { prefs.passOffen = true; save("prefs", prefs); box.querySelector(".pdeckel").style.transform = "scaleX(0)"; box.querySelector(".gsub").textContent = "Ein Stempel für jedes Land, das du mit ihnen bereist hast. Tippe auf einen Stempel."; return; }
+      if (p && !prefs.passOffen) { prefs.passOffen = true; save("prefs", prefs); box.querySelector(".pdeckel").style.transform = "scaleX(0)"; box.querySelector(".gsub").textContent = "Ein Stempel für jedes Land, das du mit ihnen bereist hast. Tippe auf einen Stempel."; if (box.querySelector("image")) setTimeout(() => { box.innerHTML = GIMMICKS[r.id](r, r.st.filter(isDone), r.st.find(s => !isDone(s))); gimmickBind(); }, 650); return; }
       if (!t) return;
       box.querySelectorAll(".gsel").forEach(x => x.classList.remove("gsel")); t.classList.add("gsel");
       e.stopPropagation(); info.innerHTML = GIM_INFO[r.id](r, t.dataset.g);

@@ -1340,6 +1340,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     return `<div class="gim" data-gim="${r.id}">${f(r, gelesen, naechster)}</div>`;
   }
   /* Asmussen: Veras gusseiserner Schirmständer in Reiherform; die alten 30 Schirme im Halbdunkel, je gelöstem Fall ein leuchtender */
+  const SCHIRM_MASSE = {"01":[30,231],"02":[82,221],"03":[142,224],"04":[124,232],"05":[75,230],"06":[78,166],"07":[133,224],"08":[80,224],"09":[42,232],"10":[63,227],"11":[88,229],"12":[78,230],"13":[66,230],"14":[91,231],"15":[89,224],"16":[79,231],"17":[76,231],"18":[55,230],"19":[64,226],"20":[29,231],"21":[38,231],"22":[94,226],"23":[74,230],"24":[84,224],"25":[47,231],"26":[90,231],"27":[82,228],"28":[48,230],"29":[32,228],"30":[102,232]};   // [Breite, Höhe] der Bilder
   function gimSchirme(r, gelesen, naechster) {
     const R = rnd(1779), alt = [];
     for (let i = 0; i < 30; i++) alt.push({ x: 108 + R() * 104, w: (R() - .5) * 26, h: 70 + R() * 50, c: ["#2a2630", "#33202a", "#1f2b2a", "#2b2a22", "#26232f"][i % 5], griff: R() < .6 });
@@ -1361,10 +1362,24 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
     });
     const ahnung = naechster ? `<g opacity=".5" data-g="n" tabindex="0"><path d="M190,152 Q184,80 212,42 Q220,80 212,152 Z" fill="none" stroke="#8f8a9c" stroke-width="1.2" stroke-dasharray="2 4"/><text x="214" y="38" fill="#8f8a9c" font-size="14" font-family="Cormorant Garamond, serif">?</text></g>` : "";
     const BILD = DATA.app.gimmickBilder || {};
+    // Gemalte Schirme (seit 04.11.2026): gimmicks/schirme/NN.png, NN = gimmick.schirmbild, sonst Reihenteil. Größen: SCHIRM_MASSE, gefächert um die Spitze;
+    // der Clip schneidet entlang der vorderen Innenkante der Öffnung (Ellipse um 335,500, rx 135, ry 42), oben bleibt alles frei
+    const FACHER = [[-55, -9, 0], [25, 3, 24], [-85, -17, 12], [65, 11, 0], [-20, -4, 36], [85, 17, 18], [-70, -13, 44], [45, 7, 40], [0, -1, 8], [-40, -7, 26]];
+    const umriss = (x, farbe, extra) => `<path d="M${x - 24},560 Q${x - 38},360 ${x},268 Q${x + 38},360 ${x + 24},560 Z M${x},268 V246 q0,-16 -14,-16 q-12,0 -12,12" fill="${extra}" stroke="${farbe}" stroke-width="3" stroke-dasharray="7 7"/>`;
+    const fach = s => { const [dx, a, dy] = FACHER[(s.reihe.teil - 1) % FACHER.length]; return [335 + dx, a, dy]; };
+    const gemalt = [...gelesen.keys()].sort((a, b) => !!(gelesen[a].gimmick || {}).verbleib - !!(gelesen[b].gimmick || {}).verbleib).map(i => {   // Glut-Umriss zuletzt, sonst verschwindet er
+      const s = gelesen[i], g = s.gimmick || {}, [x, a, dy] = fach(s), nr = String(g.schirmbild || s.reihe.teil).padStart(2, "0"), src = (DATA.app.schirmBilder || {})[nr], m = SCHIRM_MASSE[nr];
+      if (g.verbleib || !src || !m) return `<g data-g="${i}" tabindex="0" transform="rotate(${a} ${x} 620)">${umriss(x, "#e8964a", "rgba(255,140,60,.08)")}
+        ${[0, 1, 2].map(k => `<circle cx="${x + (k - 1) * 10}" cy="${360 + k * 40}" r="4" fill="#ffb060"><animate attributeName="opacity" values=".2;1;.2" dur="${1.6 + k * .5}s" repeatCount="indefinite"/></circle>`).join("")}</g>`;
+      const sk = Math.min(400 / m[1], 190 / m[0]), bw = m[0] * sk, bh = m[1] * sk, unten = 640 + dy;
+      return `<g data-g="${i}" tabindex="0" transform="rotate(${a} ${x} 620)"><image href="${src}" x="${x - bw / 2}" y="${unten - bh}" width="${bw}" height="${bh}" pointer-events="none"/>
+        <rect x="${x - 26}" y="${unten - bh}" width="52" height="${Math.max(120, 500 - unten + bh)}" fill="transparent"/></g>`;
+    }).join("") + (naechster ? (() => { const [x, a] = fach(naechster); return `<g data-g="n" tabindex="0" opacity=".6" transform="rotate(${a} ${x} 620)">${umriss(x, "#c8c2d4", "transparent")}<text x="${x}" y="350" text-anchor="middle" fill="#c8c2d4" font-size="44" font-family="Cormorant Garamond, serif">?</text></g>`; })() : "");
     if (BILD.schirmstaender) {   // gemaltes Bild gimmicks/schirmstaender (671×1000): Öffnung des Ständers um (335, 500); Schirme wie oben, nur skaliert
       return `<h4>Veras Schirmständer</h4><p class="gsub">Für jeden gelösten Fall ein Schirm. ${gelesen.length ? "Tippe auf einen Schirm." : "Noch steht nur ihr alter Schirm darin."}</p>
         <svg viewBox="0 0 671 1000" role="img" aria-label="Schirmständer"><image href="${BILD.schirmstaender}" width="671" height="1000"/>
-          <g transform="translate(-33 155) scale(2.3)">${spuren}${neu}${ahnung}</g>
+          <defs><clipPath id="schirmRand"><path d="M0,0 H671 V500 H470 A135,42 0 0 1 200,500 H0 Z"/></clipPath></defs>
+          <g clip-path="url(#schirmRand)">${gemalt}</g>
           <text x="335" y="985" text-anchor="middle" fill="#e8d8b0" stroke="#0d0b0e" stroke-width="4" paint-order="stroke" font-size="20" font-family="Inter, sans-serif" letter-spacing="4">ASMUSSEN &amp; SÖHNE · SEIT 1871</text>
         </svg><div class="ginfo" id="ginfo">${gelesen.length ? `Gelöste Fälle: <b>${gelesen.length}</b>` : "Lies den ersten Fall, dann bekommt Vera ihren ersten Schirm."}</div>`;
     }
@@ -1394,7 +1409,7 @@ html.turned #app { height: 100%; overflow-y: auto; overflow-x: hidden; overscrol
   function gimSchirmInfo(r, i) {
     if (i === "n") return "<b>Der nächste Fall</b><small>Noch ungelöst – der Platz im Ständer wartet.</small>";
     const s = r.st.filter(isDone)[+i], g = s.gimmick || {};
-    return `<b>Fall ${s.reihe.teil}: ${esc(g.fall || s.title)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}<small>${esc(g.schirm || "Ein neuer Schirm")}${g.verbleib ? " – " + esc(g.verbleib) : ""}</small>${g.heft ? `<i>Aus dem Heft der Todestage: „${esc(g.heft)}“</i>` : ""}`;
+    return `<b>Fall ${s.reihe.teil}: ${esc(g.fall || s.title)}</b>${g.jahr ? " · " + esc(g.jahr) : ""}${g.verbleib && (DATA.app.schirmBilder || {})[String(g.schirmbild || s.reihe.teil).padStart(2, "0")] ? `<img src="${DATA.app.schirmBilder[String(g.schirmbild || s.reihe.teil).padStart(2, "0")]}" alt="" style="float:right;height:72px;margin:0 0 4px 10px">` : ""}<small>${esc(g.schirm || "Ein neuer Schirm")}${g.verbleib ? " – " + esc(g.verbleib) : ""}</small>${g.heft ? `<i>Aus dem Heft der Todestage: „${esc(g.heft)}“</i>` : ""}`;
   }
   /* Grenzgänger: Reisepass des Seerats, je gelesenem Band ein Stempel (Land, Ort, Jahr); Tippen auf den Pass klappt ihn auf */
   function gimPass(r, gelesen, naechster) {
